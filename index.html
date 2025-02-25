@@ -46,15 +46,17 @@
         document.getElementById("startButton").style.display = "none";
         document.getElementById("webxrScene").style.display = "block";
 
-        // Check if WebXR AR mode is available
+        // Request AR session automatically
         if (navigator.xr) {
-          navigator.xr.isSessionSupported('immersive-ar').then((supported) => {
-            if (!supported) {
-              alert("AR mode is not supported on this device/browser.");
-            }
-          });
+          navigator.xr.requestSession('immersive-ar', { requiredFeatures: ['local-floor', 'dom-overlay'] })
+            .then(session => {
+              document.getElementById("webxrScene").style.display = "block";
+            })
+            .catch(err => {
+              alert("AR session could not be started: " + err.message);
+            });
         } else {
-          alert("WebXR not available on this browser.");
+          alert("WebXR is not available on this browser.");
         }
       });
     </script>
