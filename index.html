@@ -44,7 +44,7 @@
   
         // Create the cube and add it to the demo scene.
         const cube = new THREE.Mesh(new THREE.BoxBufferGeometry(0.2, 0.2, 0.2), materials);
-        cube.position.set(1, 1, 1);
+        cube.position.set(0, 0, -1);
         scene.add(cube);
         // Set up the WebGLRenderer, which handles rendering to the session's base layer.
         const renderer = new THREE.WebGLRenderer({
@@ -61,6 +61,10 @@
         const camera = new THREE.PerspectiveCamera();
         camera.matrixAutoUpdate = false;
           // Initialize a WebXR session using "immersive-ar".
+        if (!navigator.xr) {
+            alert("WebXR is not supported on this browser.");
+            return;
+        }
         const session = await navigator.xr.requestSession("immersive-ar");
         session.updateRenderState({
           baseLayer: new XRWebGLLayer(session, gl)
@@ -91,7 +95,8 @@
             camera.matrix.fromArray(view.transform.matrix)
             camera.projectionMatrix.fromArray(view.projectionMatrix);
             camera.updateMatrixWorld(true);
-        
+
+            renderer.clear();
             // Render the scene with THREE.WebGLRenderer.
             renderer.render(scene, camera)
           }
