@@ -25,7 +25,7 @@
   </head>
   <body>
     <h1>Welcome to the Test WebXR Application</h1>
-    <button onclick="activateXR()">Start Hello WebXR</button>
+    <button id="startButton" onclick="activateXR()">Start Hello WebXR</button>
     <script>
       async function activateXR() {
         // Add a canvas element and initialize a WebGL context that is compatible with WebXR.
@@ -101,40 +101,6 @@
         }
         session.requestAnimationFrame(onXRFrame);
       }
-    </script>
-    <div id="webxrScene">
-      <a-scene 
-        embedded 
-        xr-mode-ui="enabled: true"
-        webxr="optionalFeatures: ['dom-overlay', 'unbounded'];"
-      >
-        <!-- AR Camera -->
-        <a-entity camera></a-entity>
-        
-        <!-- 3D Cube Model -->
-        <a-box position="0 1 -2" material="color: red;"></a-box>
-      </a-scene>
-    </div>
-    
-    <script>
-      document.getElementById("startButton").addEventListener("click", async function() {
-        document.getElementById("startButton").style.display = "none";
-        document.getElementById("webxrScene").style.display = "block";
 
-        // Try to start an AR session immediately
-        if (navigator.xr) {
-          try {
-            const session = await navigator.xr.requestSession('immersive-ar', {
-              optionalFeatures: ['local-floor', 'dom-overlay']
-            });
-            document.getElementById("webxrScene").style.display = "block";
-          } catch (err) {
-            alert("AR session could not be started: " + err.message);
-          }
-        } else {
-          alert("WebXR is not available on this browser.");
-        }
-      });
-    </script>
   </body>
 </html>
