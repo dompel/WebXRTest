@@ -18,12 +18,32 @@
         border-radius: 5px;
         margin-top: 20px;
       }
+      #exitButton {
+        position: fixed;
+        top: 15px;
+        right: 15px;
+        width: 35px;
+        height: 35px;
+        font-size: 24px;
+        cursor: pointer;
+        background-color: rgba(100, 100, 100, 0.6); /* Semi-transparent gray */
+        color: white;
+        border: none;
+        border-radius: 50%;
+        display: none; /* Initially hidden */
+        transition: background-color 0.3s ease;
+      }
+      
+      #exitButton:hover {
+        background-color: rgba(100, 100, 100, 0.8); /* Slightly darker on hover */
+      }
     </style>
   </head>
   <body>
     <h1>Welcome to the Test WebXR Application</h1>
     <button id="startButton" onclick="activateXR()">Start Hello WebXR</button>
     <script>
+      let session; // Store XR session globally
       async function activateXR() {
         // Add a canvas element and initialize a WebGL context that is compatible with WebXR.
         const canvas = document.createElement("canvas");
@@ -65,9 +85,16 @@
             alert("WebXR is not supported on this browser.");
             return;
         }
-        const session = await navigator.xr.requestSession("immersive-ar");
+        session = await navigator.xr.requestSession("immersive-ar");
         session.updateRenderState({
           baseLayer: new XRWebGLLayer(session, gl)
+        });
+
+         // Show the exit button
+        document.getElementById("exitButton").style.display = "block";
+        // Handle session end
+        session.addEventListener("end", () => {
+            document.getElementById("exitButton").style.display = "none";
         });
         
         // A 'local' reference space has a native origin that is located
@@ -103,6 +130,13 @@
         }
         session.requestAnimationFrame(onXRFrame);
       }
+      function exitXR() {
+          if (session) {
+              session.end(); // Ends WebXR session
+          }
+      }
     </script>
+    
+    <button id="exitButton" onclick="exitXR()">✖</button>
   </body>
 </html>
