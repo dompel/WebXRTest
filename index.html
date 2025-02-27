@@ -3,6 +3,8 @@
 <head>
     <title>WebXR Exit Button Example</title>
     <script src="https://unpkg.com/three@0.126.0/build/three.js"></script>
+    <script src="https://threejs.org/examples/js/loaders/FontLoader.js"></script>
+    <script src="https://threejs.org/examples/js/geometries/TextGeometry.js"></script>
     <style>
         body {
             text-align: center;
@@ -26,7 +28,7 @@
 
     <script>
         let session;
-        let camera, scene, exitButton3D, renderer, referenceSpace;
+        let camera, scene, exitButton3D, logTextMesh, renderer, referenceSpace;
         const raycaster = new THREE.Raycaster();
 
         async function activateXR() {
@@ -39,27 +41,24 @@
             document.body.appendChild(canvas);
             const gl = canvas.getContext("webgl", { xrCompatible: true });
 
-            // Initialize scene & camera
             scene = new THREE.Scene();
             camera = new THREE.PerspectiveCamera();
-            scene.add(camera);  // Ensure camera is in the scene
+            scene.add(camera); // Ensure camera is part of the scene
             camera.matrixAutoUpdate = false;
 
             // Create cube for reference
-            const materials = [
-                new THREE.MeshBasicMaterial({ color: 0xff0000 }),
-                new THREE.MeshBasicMaterial({ color: 0x0000ff }),
-                new THREE.MeshBasicMaterial({ color: 0x00ff00 }),
-                new THREE.MeshBasicMaterial({ color: 0xff00ff }),
-                new THREE.MeshBasicMaterial({ color: 0x00ffff }),
-                new THREE.MeshBasicMaterial({ color: 0xffff00 })
-            ];
-            const cube = new THREE.Mesh(new THREE.BoxBufferGeometry(0.2, 0.2, 0.2), materials);
+            const cube = new THREE.Mesh(
+                new THREE.BoxGeometry(0.2, 0.2, 0.2),
+                new THREE.MeshBasicMaterial({ color: 0x00ff00 }) // Green for visibility
+            );
             cube.position.set(0, 0, -1);
             scene.add(cube);
 
-            // Add exit button that follows the camera
+            // Add exit button
             createExitButton(scene, camera);
+
+            // Add 3D log text inside WebXR
+            createLogText(scene);
 
             renderer = new THREE.WebGLRenderer({ alpha: true, canvas, context: gl });
             renderer.autoClear = false;
@@ -69,7 +68,6 @@
 
             referenceSpace = await session.requestReferenceSpace("local");
 
-            // XR Render Loop
             const onXRFrame = (time, frame) => {
                 session.requestAnimationFrame(onXRFrame);
                 gl.bindFramebuffer(gl.FRAMEBUFFER, session.renderState.baseLayer.framebuffer);
@@ -84,14 +82,24 @@
                     camera.projectionMatrix.fromArray(view.projectionMatrix);
                     camera.updateMatrixWorld(true);
 
-                    // Ensure exit button follows camera
+                    // Update exit button position
                     if (exitButton3D) {
                         exitButton3D.position.set(
-                            camera.position.x + 0.5,  // Slightly to the right
-                            camera.position.y + 0.4,  // Slightly above
-                            camera.position.z - 1.2   // In front of the camera
+                            camera.position.x + 0.5,
+                            camera.position.y + 0.4,
+                            camera.position.z - 1.2
                         );
                         exitButton3D.lookAt(camera.position.x, camera.position.y, camera.position.z);
+                    }
+
+                    // Update log text position
+                    if (logTextMesh) {
+                        logTextMesh.position.set(
+                            camera.position.x,
+                            camera.position.y + 0.6,
+                            camera.position.z - 1.5
+                        );
+                        logTextMesh.lookAt(camera.position.x, camera.position.y, camera.position.z);
                     }
 
                     renderer.clear();
@@ -100,52 +108,71 @@
             };
             session.requestAnimationFrame(onXRFrame);
 
-            // Listen for WebXR "select" event (finger tap or VR controller trigger)
             session.addEventListener("select", checkExitButtonClick);
         }
 
         function exitXR() {
             if (session) {
                 session.end();
-                console.log("WebXR session ended.");
+                logMessage("✅ WebXR session ended.");
             }
         }
 
         function createExitButton(scene, camera) {
-            const textureLoader = new THREE.TextureLoader();
-            const exitTexture = textureLoader.load("https://upload.wikimedia.org/wikipedia/commons/thumb/7/7d/Red_x.svg/1200px-Red_x.svg.png");
-
-            const exitMaterial = new THREE.MeshBasicMaterial({ 
-                map: exitTexture, 
-                transparent: true 
-            });
-
-            const exitGeometry = new THREE.PlaneGeometry(0.2, 0.2);
+            const exitMaterial = new THREE.MeshBasicMaterial({ color: 0xff0000 }); // Red for visibility
+            const exitGeometry = new THREE.PlaneGeometry(0.3, 0.3); // Bigger button
             exitButton3D = new THREE.Mesh(exitGeometry, exitMaterial);
 
-            // Position it in the top-right of the user's view
+            // Start position in front of camera
             exitButton3D.position.set(0.5, 0.4, -1.2);
-
-            // Ensure the button always faces the user
-            exitButton3D.lookAt(camera.position.x, camera.position.y, camera.position.z);
-
             exitButton3D.userData.isExitButton = true;
             scene.add(exitButton3D);
 
-            console.log("Exit button added to scene:", exitButton3D);
+            logMessage("✅ Exit button added to scene.");
+        }
+
+        function createLogText(scene) {
+            const loader = new THREE.FontLoader();
+            loader.load('https://threejs.org/examples/fonts/helvetiker_regular.typeface.json', function (font) {
+                const logTextGeometry = new THREE.TextGeometry("Logs will appear here", {
+                    font: font,
+                    size: 0.05,
+                    height: 0.001
+                });
+
+                const logTextMaterial = new THREE.MeshBasicMaterial({ color: 0xffffff });
+                logTextMesh = new THREE.Mesh(logTextGeometry, logTextMaterial);
+
+                logTextMesh.position.set(0, 1.5, -1); // Place it at eye level
+                scene.add(logTextMesh);
+            });
+        }
+
+        function logMessage(message) {
+            if (!logTextMesh) return;
+
+            const loader = new THREE.FontLoader();
+            loader.load('https://threejs.org/examples/fonts/helvetiker_regular.typeface.json', function (font) {
+                const textGeometry = new THREE.TextGeometry(message, {
+                    font: font,
+                    size: 0.05,
+                    height: 0.001
+                });
+
+                logTextMesh.geometry.dispose(); // Clean up old text
+                logTextMesh.geometry = textGeometry;
+            });
         }
 
         function checkExitButtonClick(event) {
             if (!session) return;
 
-            // Get the active input source (finger tap, controller, etc.)
             const inputSources = session.inputSources;
-            if (inputSources.length === 0) return; // No input detected
+            if (inputSources.length === 0) return;
 
-            const inputSource = inputSources[0]; // Use the first input source
+            const inputSource = inputSources[0];
             if (!inputSource || !inputSource.targetRaySpace) return;
 
-            // Use XR Raycaster to check intersection with the exit button
             session.requestAnimationFrame((time, frame) => {
                 if (!referenceSpace) return;
                 const pose = frame.getPose(inputSource.targetRaySpace, referenceSpace);
@@ -157,14 +184,14 @@
                     pose.transform.position.z
                 );
 
-                const rayDirection = new THREE.Vector3(0, 0, -1); // Assuming it's pointing forward
+                const rayDirection = new THREE.Vector3(0, 0, -1);
 
                 raycaster.set(rayOrigin, rayDirection);
                 const intersects = raycaster.intersectObjects(scene.children, true);
 
                 for (let i = 0; i < intersects.length; i++) {
                     if (intersects[i].object.userData.isExitButton) {
-                        console.log("Exit button tapped! Exiting XR...");
+                        logMessage("🛑 Exit button tapped! Exiting XR...");
                         exitXR();
                         return;
                     }
