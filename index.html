@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html>
 <head>
-    <title>Web XR Example</title>
+    <title>WebXR Exit Button Example</title>
     <script src="https://unpkg.com/three@0.126.0/build/three.js"></script>
     <style>
         body {
@@ -23,9 +23,10 @@
 <body>
     <h1>Welcome to the Test WebXR Application</h1>
     <button id="startButton" onclick="activateXR()">Start Hello WebXR</button>
-    
+
     <script>
         let session;
+        let camera;
         const raycaster = new THREE.Raycaster();
         const pointer = new THREE.Vector2();
 
@@ -35,14 +36,15 @@
                 return;
             }
 
-            // Create canvas
             const canvas = document.createElement("canvas");
             document.body.appendChild(canvas);
             const gl = canvas.getContext("webgl", { xrCompatible: true });
 
             const scene = new THREE.Scene();
+            camera = new THREE.PerspectiveCamera();
+            camera.matrixAutoUpdate = false;
 
-            // Create cube
+            // Create cube for reference
             const materials = [
                 new THREE.MeshBasicMaterial({ color: 0xff0000 }),
                 new THREE.MeshBasicMaterial({ color: 0x0000ff }),
@@ -55,37 +57,25 @@
             cube.position.set(0, 0, -1);
             scene.add(cube);
 
-            // Add exit button (3D)
-            createExitButton(scene);
+            // Add exit button
+            createExitButton(camera);
 
-            // Renderer
             const renderer = new THREE.WebGLRenderer({ alpha: true, canvas, context: gl });
             renderer.autoClear = false;
 
-            const camera = new THREE.PerspectiveCamera();
-            camera.matrixAutoUpdate = false;
-
-            // Start XR session
             session = await navigator.xr.requestSession("immersive-ar");
             session.updateRenderState({ baseLayer: new XRWebGLLayer(session, gl) });
 
-            // Handle touch input for exiting
-            window.addEventListener("touchstart", (event) => {
-                checkExitButtonClick(event.touches[0].clientX, event.touches[0].clientY);
-            });
-
             const referenceSpace = await session.requestReferenceSpace("local");
 
-            // Render loop
+            // XR Render Loop
             const onXRFrame = (time, frame) => {
                 session.requestAnimationFrame(onXRFrame);
-
                 gl.bindFramebuffer(gl.FRAMEBUFFER, session.renderState.baseLayer.framebuffer);
 
                 const pose = frame.getViewerPose(referenceSpace);
                 if (pose) {
                     const view = pose.views[0];
-
                     const viewport = session.renderState.baseLayer.getViewport(view);
                     renderer.setSize(viewport.width, viewport.height);
 
@@ -103,21 +93,35 @@
         function exitXR() {
             if (session) {
                 session.end();
-                document.getElementById("exitButton").style.display = "none";
+                console.log("WebXR session ended.");
             }
         }
 
-        function createExitButton(scene) {
+        function createExitButton(camera) {
             const textureLoader = new THREE.TextureLoader();
             const exitTexture = textureLoader.load("https://upload.wikimedia.org/wikipedia/commons/thumb/7/7d/Red_x.svg/1200px-Red_x.svg.png");
 
-            const exitMaterial = new THREE.MeshBasicMaterial({ map: exitTexture, transparent: true });
-            const exitGeometry = new THREE.PlaneGeometry(0.2, 0.2);
+            const exitMaterial = new THREE.MeshBasicMaterial({ 
+                map: exitTexture, 
+                transparent: true 
+            });
+
+            const exitGeometry = new THREE.PlaneGeometry(0.2, 0.2); // Adjust size as needed
             const exitButton3D = new THREE.Mesh(exitGeometry, exitMaterial);
 
-            exitButton3D.position.set(0, 0.5, -0.8);
+            // Attach button to the camera
+            const exitButtonGroup = new THREE.Object3D();
+            exitButtonGroup.add(exitButton3D);
+            
+            // Position the button in the top-right of the user's view
+            exitButton3D.position.set(0.4, 0.3, -1); // Adjust for best visibility
+
+            // Ensure the button always faces the user
+            exitButton3D.lookAt(0, 0, 0); 
+
+            // Attach to the camera
+            camera.add(exitButtonGroup);
             exitButton3D.userData.isExitButton = true;
-            scene.add(exitButton3D);
         }
 
         function checkExitButtonClick(x, y) {
@@ -125,15 +129,27 @@
             pointer.y = -(y / window.innerHeight) * 2 + 1;
 
             raycaster.setFromCamera(pointer, camera);
-            const intersects = raycaster.intersectObjects(scene.children);
+            const intersects = raycaster.intersectObjects(camera.children, true); // Only check objects inside camera
 
             for (let i = 0; i < intersects.length; i++) {
                 if (intersects[i].object.userData.isExitButton) {
+                    console.log("Exit button tapped! Exiting XR...");
                     exitXR();
                     return;
                 }
             }
         }
+
+        // Listen for taps
+        window.addEventListener("touchstart", (event) => {
+            checkExitButtonClick(event.touches[0].clientX, event.touches[0].clientY);
+        });
+
+        // Also listen for mouse clicks for debugging
+        window.addEventListener("click", (event) => {
+            checkExitButtonClick(event.clientX, event.clientY);
+        });
+
     </script>
 </body>
 </html>
