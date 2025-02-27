@@ -1,142 +1,139 @@
 <!DOCTYPE html>
 <html>
-  <head>
-    <title>Web XR Example</title><!-- three.js -->
+<head>
+    <title>Web XR Example</title>
     <script src="https://unpkg.com/three@0.126.0/build/three.js"></script>
     <style>
-      body {
-        text-align: center;
-        font-family: Arial, sans-serif;
-      }
-      #startButton {
-        padding: 10px 20px;
-        font-size: 18px;
-        cursor: pointer;
-        background-color: #007BFF;
-        color: white;
-        border: none;
-        border-radius: 5px;
-        margin-top: 20px;
-      }
-      #exitButton {
-        position: fixed;
-        top: 15px;
-        right: 15px;
-        width: 35px;
-        height: 35px;
-        font-size: 24px;
-        cursor: pointer;
-        background-color: rgba(100, 100, 100, 0.6); /* Semi-transparent gray */
-        color: white;
-        border: none;
-        border-radius: 50%;
-        display: none; /* Initially hidden */
-        transition: background-color 0.3s ease;
-      }
-      
-      #exitButton:hover {
-        background-color: rgba(100, 100, 100, 0.8); /* Slightly darker on hover */
-      }
+        body {
+            text-align: center;
+            font-family: Arial, sans-serif;
+        }
+        #startButton {
+            padding: 10px 20px;
+            font-size: 18px;
+            cursor: pointer;
+            background-color: #007BFF;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            margin-top: 20px;
+        }
     </style>
-  </head>
-  <body>
+</head>
+<body>
     <h1>Welcome to the Test WebXR Application</h1>
     <button id="startButton" onclick="activateXR()">Start Hello WebXR</button>
-    <script>
-      let session; // Store XR session globally
-      async function activateXR() {
-        // Add a canvas element and initialize a WebGL context that is compatible with WebXR.
-        const canvas = document.createElement("canvas");
-        document.body.appendChild(canvas);
-        const gl = canvas.getContext("webgl", {xrCompatible: true});
-  
-        const scene = new THREE.Scene();
-  
-        // The cube will have a different color on each side.
-        const materials = [
-          new THREE.MeshBasicMaterial({color: 0xff0000}),
-          new THREE.MeshBasicMaterial({color: 0x0000ff}),
-          new THREE.MeshBasicMaterial({color: 0x00ff00}),
-          new THREE.MeshBasicMaterial({color: 0xff00ff}),
-          new THREE.MeshBasicMaterial({color: 0x00ffff}),
-          new THREE.MeshBasicMaterial({color: 0xffff00})
-        ];
-  
-        // Create the cube and add it to the demo scene.
-        const cube = new THREE.Mesh(new THREE.BoxBufferGeometry(0.2, 0.2, 0.2), materials);
-        cube.position.set(0, 0, -1);
-        scene.add(cube);
-        // Set up the WebGLRenderer, which handles rendering to the session's base layer.
-        const renderer = new THREE.WebGLRenderer({
-          alpha: true,
-          preserveDrawingBuffer: true,
-          canvas: canvas,
-          context: gl
-        });
-        renderer.autoClear = false;
-        
-        // The API directly updates the camera matrices.
-        // Disable matrix auto updates so three.js doesn't attempt
-        // to handle the matrices independently.
-        const camera = new THREE.PerspectiveCamera();
-        camera.matrixAutoUpdate = false;
-          // Initialize a WebXR session using "immersive-ar".
-        if (!navigator.xr) {
-            alert("WebXR is not supported on this browser.");
-            return;
-        }
-        session = await navigator.xr.requestSession("immersive-ar");
-        session.updateRenderState({
-          baseLayer: new XRWebGLLayer(session, gl)
-        });
-
-         // Show the exit button
-        document.getElementById("exitButton").style.display = "block";
-        // Handle session end
-        session.addEventListener("end", () => {
-            document.getElementById("exitButton").style.display = "none";
-        });
-        
-        // A 'local' reference space has a native origin that is located
-        // near the viewer's position at the time the session was created.
-        const referenceSpace = await session.requestReferenceSpace('local');
-        // Create a render loop that allows us to draw on the AR view.
-        const onXRFrame = (time, frame) => {
-          // Queue up the next draw request.
-          session.requestAnimationFrame(onXRFrame);
-        
-          // Bind the graphics framebuffer to the baseLayer's framebuffer
-          gl.bindFramebuffer(gl.FRAMEBUFFER, session.renderState.baseLayer.framebuffer)
-        
-          // Retrieve the pose of the device.
-          // XRFrame.getViewerPose can return null while the session attempts to establish tracking.
-          const pose = frame.getViewerPose(referenceSpace);
-          if (pose) {
-            // In mobile AR, we only have one view.
-            const view = pose.views[0];
-        
-            const viewport = session.renderState.baseLayer.getViewport(view);
-            renderer.setSize(viewport.width, viewport.height)
-        
-            // Use the view's transform matrix and projection matrix to configure the THREE.camera.
-            camera.matrix.fromArray(view.transform.matrix)
-            camera.projectionMatrix.fromArray(view.projectionMatrix);
-            camera.updateMatrixWorld(true);
-
-            renderer.clear();
-            // Render the scene with THREE.WebGLRenderer.
-            renderer.render(scene, camera)
-          }
-        }
-        session.requestAnimationFrame(onXRFrame);
-      }
-      function exitXR() {
-          if (session) {
-              session.end(); // Ends WebXR session
-          }
-      }
-    </script>
     
-    <button id="exitButton" onclick="exitXR()">✖</button>
-  </body>
+    <script>
+        let session;
+        const raycaster = new THREE.Raycaster();
+        const pointer = new THREE.Vector2();
+
+        async function activateXR() {
+            if (!navigator.xr) {
+                alert("WebXR is not supported on this browser.");
+                return;
+            }
+
+            // Create canvas
+            const canvas = document.createElement("canvas");
+            document.body.appendChild(canvas);
+            const gl = canvas.getContext("webgl", { xrCompatible: true });
+
+            const scene = new THREE.Scene();
+
+            // Create cube
+            const materials = [
+                new THREE.MeshBasicMaterial({ color: 0xff0000 }),
+                new THREE.MeshBasicMaterial({ color: 0x0000ff }),
+                new THREE.MeshBasicMaterial({ color: 0x00ff00 }),
+                new THREE.MeshBasicMaterial({ color: 0xff00ff }),
+                new THREE.MeshBasicMaterial({ color: 0x00ffff }),
+                new THREE.MeshBasicMaterial({ color: 0xffff00 })
+            ];
+            const cube = new THREE.Mesh(new THREE.BoxBufferGeometry(0.2, 0.2, 0.2), materials);
+            cube.position.set(0, 0, -1);
+            scene.add(cube);
+
+            // Add exit button (3D)
+            createExitButton(scene);
+
+            // Renderer
+            const renderer = new THREE.WebGLRenderer({ alpha: true, canvas, context: gl });
+            renderer.autoClear = false;
+
+            const camera = new THREE.PerspectiveCamera();
+            camera.matrixAutoUpdate = false;
+
+            // Start XR session
+            session = await navigator.xr.requestSession("immersive-ar");
+            session.updateRenderState({ baseLayer: new XRWebGLLayer(session, gl) });
+
+            // Handle touch input for exiting
+            window.addEventListener("touchstart", (event) => {
+                checkExitButtonClick(event.touches[0].clientX, event.touches[0].clientY);
+            });
+
+            const referenceSpace = await session.requestReferenceSpace("local");
+
+            // Render loop
+            const onXRFrame = (time, frame) => {
+                session.requestAnimationFrame(onXRFrame);
+
+                gl.bindFramebuffer(gl.FRAMEBUFFER, session.renderState.baseLayer.framebuffer);
+
+                const pose = frame.getViewerPose(referenceSpace);
+                if (pose) {
+                    const view = pose.views[0];
+
+                    const viewport = session.renderState.baseLayer.getViewport(view);
+                    renderer.setSize(viewport.width, viewport.height);
+
+                    camera.matrix.fromArray(view.transform.matrix);
+                    camera.projectionMatrix.fromArray(view.projectionMatrix);
+                    camera.updateMatrixWorld(true);
+
+                    renderer.clear();
+                    renderer.render(scene, camera);
+                }
+            };
+            session.requestAnimationFrame(onXRFrame);
+        }
+
+        function exitXR() {
+            if (session) {
+                session.end();
+                document.getElementById("exitButton").style.display = "none";
+            }
+        }
+
+        function createExitButton(scene) {
+            const textureLoader = new THREE.TextureLoader();
+            const exitTexture = textureLoader.load("https://upload.wikimedia.org/wikipedia/commons/thumb/7/7d/Red_x.svg/1200px-Red_x.svg.png");
+
+            const exitMaterial = new THREE.MeshBasicMaterial({ map: exitTexture, transparent: true });
+            const exitGeometry = new THREE.PlaneGeometry(0.2, 0.2);
+            const exitButton3D = new THREE.Mesh(exitGeometry, exitMaterial);
+
+            exitButton3D.position.set(0, 0.5, -0.8);
+            exitButton3D.userData.isExitButton = true;
+            scene.add(exitButton3D);
+        }
+
+        function checkExitButtonClick(x, y) {
+            pointer.x = (x / window.innerWidth) * 2 - 1;
+            pointer.y = -(y / window.innerHeight) * 2 + 1;
+
+            raycaster.setFromCamera(pointer, camera);
+            const intersects = raycaster.intersectObjects(scene.children);
+
+            for (let i = 0; i < intersects.length; i++) {
+                if (intersects[i].object.userData.isExitButton) {
+                    exitXR();
+                    return;
+                }
+            }
+        }
+    </script>
+</body>
 </html>
