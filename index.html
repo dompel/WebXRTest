@@ -36,6 +36,7 @@
       let arStartTime;
       let arActive = false;
       const id = getQueryParam("ID") || "";
+      const tic = getQueryParam("tic")|| "";
       const startButton = document.getElementById("startButton");
       const surveyButton = document.getElementById("surveyButton");
 
@@ -95,7 +96,7 @@
         session.addEventListener("end", () => {
           arActive = false;
           const elapsedTime = Math.round((Date.now() - arStartTime) / 1000);
-          const surveyUrl = `https://ww2.unipark.de/uc/Dominik/1db8/?a=${id}&b=1&c=${elapsedTime}`;
+          const surveyUrl = `https://ww2.unipark.de/uc/Dominik/1db8/ospe.php?return_tic=${tic}?a=${id}&b=1&c=${elapsedTime}`;
           surveyButton.style.display = "inline-block";
           surveyButton.onclick = () => window.location.href = surveyUrl;
         });
