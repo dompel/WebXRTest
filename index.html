@@ -21,14 +21,13 @@
     </style>
 </head>
 <body>
-    <h1>Welcome to the Test WebXR Application</h1>
-    <button id="startButton" onclick="activateXR()">Start Hello WebXR</button>
+    <h1>Welcome to the WebXR Exit Button Example</h1>
+    <button id="startButton" onclick="activateXR()">Start WebXR</button>
 
     <script>
         let session;
-        let camera, scene, exitButton3D;
+        let camera, scene, exitButton3D, renderer, referenceSpace;
         const raycaster = new THREE.Raycaster();
-        const pointer = new THREE.Vector2();
 
         async function activateXR() {
             if (!navigator.xr) {
@@ -62,13 +61,13 @@
             // Add exit button that follows the camera
             createExitButton(scene, camera);
 
-            const renderer = new THREE.WebGLRenderer({ alpha: true, canvas, context: gl });
+            renderer = new THREE.WebGLRenderer({ alpha: true, canvas, context: gl });
             renderer.autoClear = false;
 
             session = await navigator.xr.requestSession("immersive-ar");
             session.updateRenderState({ baseLayer: new XRWebGLLayer(session, gl) });
 
-            const referenceSpace = await session.requestReferenceSpace("local");
+            referenceSpace = await session.requestReferenceSpace("local");
 
             // XR Render Loop
             const onXRFrame = (time, frame) => {
@@ -88,9 +87,9 @@
                     // Ensure exit button follows camera
                     if (exitButton3D) {
                         exitButton3D.position.set(
-                            camera.position.x + 0.4,
-                            camera.position.y + 0.3,
-                            camera.position.z - 1
+                            camera.position.x + 0.5,  // Slightly to the right
+                            camera.position.y + 0.4,  // Slightly above
+                            camera.position.z - 1.2   // In front of the camera
                         );
                         exitButton3D.lookAt(camera.position.x, camera.position.y, camera.position.z);
                     }
@@ -100,6 +99,9 @@
                 }
             };
             session.requestAnimationFrame(onXRFrame);
+
+            // Listen for WebXR "select" event (finger tap or VR controller trigger)
+            session.addEventListener("select", checkExitButtonClick);
         }
 
         function exitXR() {
@@ -122,7 +124,7 @@
             exitButton3D = new THREE.Mesh(exitGeometry, exitMaterial);
 
             // Position it in the top-right of the user's view
-            exitButton3D.position.set(0.4, 0.3, -1);
+            exitButton3D.position.set(0.5, 0.4, -1.2);
 
             // Ensure the button always faces the user
             exitButton3D.lookAt(camera.position.x, camera.position.y, camera.position.z);
@@ -133,32 +135,42 @@
             console.log("Exit button added to scene:", exitButton3D);
         }
 
-        function checkExitButtonClick(x, y) {
-            pointer.x = (x / window.innerWidth) * 2 - 1;
-            pointer.y = -(y / window.innerHeight) * 2 + 1;
+        function checkExitButtonClick(event) {
+            if (!session) return;
 
-            raycaster.setFromCamera(pointer, camera);
-            const intersects = raycaster.intersectObjects(scene.children, true); // Only check objects in the scene
+            // Get the active input source (finger tap, controller, etc.)
+            const inputSources = session.inputSources;
+            if (inputSources.length === 0) return; // No input detected
 
-            for (let i = 0; i < intersects.length; i++) {
-                if (intersects[i].object.userData.isExitButton) {
-                    console.log("Exit button tapped! Exiting XR...");
-                    exitXR();
-                    return;
+            const inputSource = inputSources[0]; // Use the first input source
+            if (!inputSource || !inputSource.targetRaySpace) return;
+
+            // Use XR Raycaster to check intersection with the exit button
+            session.requestAnimationFrame((time, frame) => {
+                if (!referenceSpace) return;
+                const pose = frame.getPose(inputSource.targetRaySpace, referenceSpace);
+                if (!pose) return;
+
+                const rayOrigin = new THREE.Vector3(
+                    pose.transform.position.x,
+                    pose.transform.position.y,
+                    pose.transform.position.z
+                );
+
+                const rayDirection = new THREE.Vector3(0, 0, -1); // Assuming it's pointing forward
+
+                raycaster.set(rayOrigin, rayDirection);
+                const intersects = raycaster.intersectObjects(scene.children, true);
+
+                for (let i = 0; i < intersects.length; i++) {
+                    if (intersects[i].object.userData.isExitButton) {
+                        console.log("Exit button tapped! Exiting XR...");
+                        exitXR();
+                        return;
+                    }
                 }
-            }
+            });
         }
-
-        // Listen for taps
-        window.addEventListener("touchstart", (event) => {
-            checkExitButtonClick(event.touches[0].clientX, event.touches[0].clientY);
-        });
-
-        // Also listen for mouse clicks for debugging
-        window.addEventListener("click", (event) => {
-            checkExitButtonClick(event.clientX, event.clientY);
-        });
-
     </script>
 </body>
 </html>
