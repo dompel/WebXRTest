@@ -26,7 +26,7 @@
 
     <script>
         let session;
-        let camera;
+        let camera, scene, exitButton3D;
         const raycaster = new THREE.Raycaster();
         const pointer = new THREE.Vector2();
 
@@ -40,8 +40,10 @@
             document.body.appendChild(canvas);
             const gl = canvas.getContext("webgl", { xrCompatible: true });
 
-            const scene = new THREE.Scene();
+            // Initialize scene & camera
+            scene = new THREE.Scene();
             camera = new THREE.PerspectiveCamera();
+            scene.add(camera);  // Ensure camera is in the scene
             camera.matrixAutoUpdate = false;
 
             // Create cube for reference
@@ -57,8 +59,8 @@
             cube.position.set(0, 0, -1);
             scene.add(cube);
 
-            // Add exit button
-            createExitButton(camera);
+            // Add exit button that follows the camera
+            createExitButton(scene, camera);
 
             const renderer = new THREE.WebGLRenderer({ alpha: true, canvas, context: gl });
             renderer.autoClear = false;
@@ -83,6 +85,16 @@
                     camera.projectionMatrix.fromArray(view.projectionMatrix);
                     camera.updateMatrixWorld(true);
 
+                    // Ensure exit button follows camera
+                    if (exitButton3D) {
+                        exitButton3D.position.set(
+                            camera.position.x + 0.4,
+                            camera.position.y + 0.3,
+                            camera.position.z - 1
+                        );
+                        exitButton3D.lookAt(camera.position.x, camera.position.y, camera.position.z);
+                    }
+
                     renderer.clear();
                     renderer.render(scene, camera);
                 }
@@ -97,7 +109,7 @@
             }
         }
 
-        function createExitButton(camera) {
+        function createExitButton(scene, camera) {
             const textureLoader = new THREE.TextureLoader();
             const exitTexture = textureLoader.load("https://upload.wikimedia.org/wikipedia/commons/thumb/7/7d/Red_x.svg/1200px-Red_x.svg.png");
 
@@ -106,22 +118,19 @@
                 transparent: true 
             });
 
-            const exitGeometry = new THREE.PlaneGeometry(0.2, 0.2); // Adjust size as needed
-            const exitButton3D = new THREE.Mesh(exitGeometry, exitMaterial);
+            const exitGeometry = new THREE.PlaneGeometry(0.2, 0.2);
+            exitButton3D = new THREE.Mesh(exitGeometry, exitMaterial);
 
-            // Attach button to the camera
-            const exitButtonGroup = new THREE.Object3D();
-            exitButtonGroup.add(exitButton3D);
-            
-            // Position the button in the top-right of the user's view
-            exitButton3D.position.set(0.4, 0.3, -1); // Adjust for best visibility
+            // Position it in the top-right of the user's view
+            exitButton3D.position.set(0.4, 0.3, -1);
 
             // Ensure the button always faces the user
-            exitButton3D.lookAt(0, 0, 0); 
+            exitButton3D.lookAt(camera.position.x, camera.position.y, camera.position.z);
 
-            // Attach to the camera
-            camera.add(exitButtonGroup);
             exitButton3D.userData.isExitButton = true;
+            scene.add(exitButton3D);
+
+            console.log("Exit button added to scene:", exitButton3D);
         }
 
         function checkExitButtonClick(x, y) {
@@ -129,7 +138,7 @@
             pointer.y = -(y / window.innerHeight) * 2 + 1;
 
             raycaster.setFromCamera(pointer, camera);
-            const intersects = raycaster.intersectObjects(camera.children, true); // Only check objects inside camera
+            const intersects = raycaster.intersectObjects(scene.children, true); // Only check objects in the scene
 
             for (let i = 0; i < intersects.length; i++) {
                 if (intersects[i].object.userData.isExitButton) {
