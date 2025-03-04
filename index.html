@@ -31,7 +31,7 @@
     
     <script>
       let arStartTime, arActive = false;
-      let cube, scene, renderer, camera;
+      let cube, scene, renderer, camera, session;
       let isDragging = false, previousTouch;
 
       document.getElementById("startButton").style.display = "inline-block";
@@ -46,6 +46,7 @@
         scene = new THREE.Scene();
         renderer = new THREE.WebGLRenderer({ alpha: true, preserveDrawingBuffer: true, canvas: canvas, context: gl });
         renderer.autoClear = false;
+        renderer.xr.enabled = true;
         
         camera = new THREE.PerspectiveCamera();
         camera.matrixAutoUpdate = false;
@@ -67,7 +68,7 @@
           return;
         }
         
-        const session = await navigator.xr.requestSession("immersive-ar", { requiredFeatures: ["local-floor", "hand-tracking"] });
+        session = await navigator.xr.requestSession("immersive-ar", { requiredFeatures: ["local-floor", "hand-tracking"] });
         session.updateRenderState({ baseLayer: new XRWebGLLayer(session, gl) });
         const referenceSpace = await session.requestReferenceSpace("local-floor");
         
@@ -75,6 +76,7 @@
         renderer.xr.setSession(session);
         
         const onXRFrame = (time, frame) => {
+          if (!session) return;
           session.requestAnimationFrame(onXRFrame);
           gl.bindFramebuffer(gl.FRAMEBUFFER, session.renderState.baseLayer.framebuffer);
           
@@ -95,6 +97,7 @@
         
         session.addEventListener("end", () => {
           arActive = false;
+          session = null;
           const elapsedTime = Math.round((Date.now() - arStartTime) / 1000);
           document.getElementById("surveyButton").style.display = "inline-block";
           document.getElementById("surveyButton").onclick = () => {
@@ -104,6 +107,7 @@
       };
       
       document.addEventListener("touchstart", (event) => {
+        if (!arActive || !cube) return;
         if (event.touches.length === 1) {
           isDragging = true;
           previousTouch = event.touches[0];
@@ -111,15 +115,14 @@
       });
 
       document.addEventListener("touchmove", (event) => {
-        if (isDragging && event.touches.length === 1) {
-          const touch = event.touches[0];
-          const deltaX = touch.clientX - previousTouch.clientX;
-          const deltaY = touch.clientY - previousTouch.clientY;
-          
-          cube.position.x += deltaX * 0.001;
-          cube.position.y -= deltaY * 0.001;
-          previousTouch = touch;
-        }
+        if (!arActive || !isDragging || event.touches.length !== 1) return;
+        const touch = event.touches[0];
+        const deltaX = touch.clientX - previousTouch.clientX;
+        const deltaY = touch.clientY - previousTouch.clientY;
+        
+        cube.position.x += deltaX * 0.001;
+        cube.position.y -= deltaY * 0.001;
+        previousTouch = touch;
       });
 
       document.addEventListener("touchend", () => {
