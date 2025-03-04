@@ -10,8 +10,6 @@
         text-align: center;
         font-family: Arial, sans-serif;
         touch-action: none;
-        margin: 0;
-        overflow: hidden;
       }
       #startButton, #surveyButton {
         padding: 10px 20px;
@@ -22,15 +20,12 @@
         border: none;
         border-radius: 5px;
         margin-top: 20px;
-        position: absolute;
-        z-index: 10;
+        display: none;
       }
-      #startButton { top: 20px; left: 20px; }
-      #surveyButton { top: 20px; right: 20px; display: none; }
     </style>
   </head>
   <body>
-    <h1 style="display:none;">Welcome to the Interactive WebXR Application</h1>
+    <h1>Welcome to the Interactive WebXR Application</h1>
     <button id="startButton">Start WebXR</button>
     <button id="surveyButton">Zurück zur Umfrage</button>
     
@@ -39,8 +34,9 @@
       let cube, scene, renderer, camera, session;
       let isDragging = false, previousTouch;
       let isMultiTouch = false, previousDistance = null, previousAngle = null, previousMidpoint = null;
+      let canvas; // Referenz zum Canvas speichern
       
-      // Helper-Funktionen für Multitouch
+      // Hilfsfunktionen für Multitouch
       function getDistance(touch1, touch2) {
         let dx = touch2.clientX - touch1.clientX;
         let dy = touch2.clientY - touch1.clientY;
@@ -56,28 +52,13 @@
         };
       }
       
-      const startButton = document.getElementById("startButton");
-      const surveyButton = document.getElementById("surveyButton");
-      startButton.style.display = "inline-block";
-      
-      startButton.onclick = async function () {
+      document.getElementById("startButton").style.display = "inline-block";
+      document.getElementById("startButton").onclick = async function () {
         arStartTime = Date.now();
         arActive = true;
         
-        // Erstelle und style das Canvas, sodass es den ganzen Bildschirm füllt
-        const canvas = document.createElement("canvas");
-        canvas.style.position = "absolute";
-        canvas.style.top = "0";
-        canvas.style.left = "0";
-        canvas.style.width = "100%";
-        canvas.style.height = "100%";
+        canvas = document.createElement("canvas");
         document.body.appendChild(canvas);
-        
-        // Hänge Touch-Event-Listener direkt an das Canvas
-        canvas.addEventListener("touchstart", onTouchStart, false);
-        canvas.addEventListener("touchmove", onTouchMove, false);
-        canvas.addEventListener("touchend", onTouchEnd, false);
-        
         const gl = canvas.getContext("webgl", { xrCompatible: true });
         
         scene = new THREE.Scene();
@@ -105,7 +86,6 @@
           return;
         }
         
-        // "hand-tracking" als optionales Feature angefragt
         session = await navigator.xr.requestSession("immersive-ar", { 
           requiredFeatures: ["local-floor"],
           optionalFeatures: ["hand-tracking"]
@@ -115,6 +95,69 @@
         
         renderer.xr.setReferenceSpaceType("local-floor");
         renderer.xr.setSession(session);
+        
+        // Touch-Event-Listener direkt am Canvas registrieren
+        canvas.addEventListener("touchstart", (event) => {
+          event.preventDefault();
+          if (!arActive || !cube) return;
+          if (event.touches.length === 1) {
+            isDragging = true;
+            previousTouch = event.touches[0];
+          } else if (event.touches.length === 2) {
+            isMultiTouch = true;
+            previousDistance = getDistance(event.touches[0], event.touches[1]);
+            previousAngle = getAngle(event.touches[0], event.touches[1]);
+            previousMidpoint = getMidpoint(event.touches[0], event.touches[1]);
+          }
+        });
+        
+        canvas.addEventListener("touchmove", (event) => {
+          event.preventDefault();
+          if (!arActive || !cube) return;
+          if (isMultiTouch && event.touches.length === 2) {
+            const currentDistance = getDistance(event.touches[0], event.touches[1]);
+            const currentAngle = getAngle(event.touches[0], event.touches[1]);
+            const currentMidpoint = getMidpoint(event.touches[0], event.touches[1]);
+            
+            // Gleichmäßige Skalierung
+            const scaleFactor = currentDistance / previousDistance;
+            cube.scale.multiplyScalar(scaleFactor);
+            
+            // Rotation um die Y-Achse
+            const angleDelta = currentAngle - previousAngle;
+            cube.rotation.y += angleDelta;
+            
+            // Translation basierend auf der Bewegung des Mittelpunkts
+            const deltaX = currentMidpoint.x - previousMidpoint.x;
+            const deltaY = currentMidpoint.y - previousMidpoint.y;
+            cube.position.x += deltaX * 0.001;
+            cube.position.y -= deltaY * 0.001;
+            
+            previousDistance = currentDistance;
+            previousAngle = currentAngle;
+            previousMidpoint = currentMidpoint;
+          } else if (isDragging && event.touches.length === 1) {
+            const touch = event.touches[0];
+            const deltaX = touch.clientX - previousTouch.clientX;
+            const deltaY = touch.clientY - previousTouch.clientY;
+            cube.position.x += deltaX * 0.001;
+            cube.position.y -= deltaY * 0.001;
+            previousTouch = touch;
+          }
+        });
+        
+        canvas.addEventListener("touchend", (event) => {
+          event.preventDefault();
+          if (event.touches.length < 2) {
+            isMultiTouch = false;
+            previousDistance = null;
+            previousAngle = null;
+            previousMidpoint = null;
+          }
+          if (event.touches.length === 0) {
+            isDragging = false;
+          }
+        });
         
         const onXRFrame = (time, frame) => {
           if (!session) return;
@@ -140,72 +183,12 @@
           arActive = false;
           session = null;
           const elapsedTime = Math.round((Date.now() - arStartTime) / 1000);
-          surveyButton.style.display = "inline-block";
-          surveyButton.onclick = () => {
+          document.getElementById("surveyButton").style.display = "inline-block";
+          document.getElementById("surveyButton").onclick = () => {
             window.location.href = `https://ww2.unipark.de/uc/Dominik/1db8/ospe.php?return_tic=tic?a=id&b=1&c=${elapsedTime}`;
           };
         });
       };
-      
-      // Touch-Event-Handler, die direkt am Canvas registriert sind
-      function onTouchStart(event) {
-        if (!arActive || !cube) return;
-        if (event.touches.length === 1) {
-          isDragging = true;
-          previousTouch = event.touches[0];
-        } else if (event.touches.length === 2) {
-          isMultiTouch = true;
-          previousDistance = getDistance(event.touches[0], event.touches[1]);
-          previousAngle = getAngle(event.touches[0], event.touches[1]);
-          previousMidpoint = getMidpoint(event.touches[0], event.touches[1]);
-        }
-      }
-      
-      function onTouchMove(event) {
-        if (!arActive || !cube) return;
-        if (isMultiTouch && event.touches.length === 2) {
-          const currentDistance = getDistance(event.touches[0], event.touches[1]);
-          const currentAngle = getAngle(event.touches[0], event.touches[1]);
-          const currentMidpoint = getMidpoint(event.touches[0], event.touches[1]);
-          
-          // Skalierung (uniform)
-          const scaleFactor = currentDistance / previousDistance;
-          cube.scale.multiplyScalar(scaleFactor);
-          
-          // Rotation (um die Y-Achse, kann je nach Bedarf angepasst werden)
-          const angleDelta = currentAngle - previousAngle;
-          cube.rotation.y += angleDelta;
-          
-          // Translation anhand der Bewegung des Mittelpunkts
-          const deltaX = currentMidpoint.x - previousMidpoint.x;
-          const deltaY = currentMidpoint.y - previousMidpoint.y;
-          cube.position.x += deltaX * 0.001;
-          cube.position.y -= deltaY * 0.001;
-          
-          previousDistance = currentDistance;
-          previousAngle = currentAngle;
-          previousMidpoint = currentMidpoint;
-        } else if (isDragging && event.touches.length === 1) {
-          const touch = event.touches[0];
-          const deltaX = touch.clientX - previousTouch.clientX;
-          const deltaY = touch.clientY - previousTouch.clientY;
-          cube.position.x += deltaX * 0.001;
-          cube.position.y -= deltaY * 0.001;
-          previousTouch = touch;
-        }
-      }
-      
-      function onTouchEnd(event) {
-        if (event.touches.length < 2) {
-          isMultiTouch = false;
-          previousDistance = null;
-          previousAngle = null;
-          previousMidpoint = null;
-        }
-        if (event.touches.length === 0) {
-          isDragging = false;
-        }
-      }
     </script>
   </body>
 </html>
