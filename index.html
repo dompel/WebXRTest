@@ -28,12 +28,6 @@
         display: none;
         position: relative;
       }
-      /* Force AR.js's video to scale to the container without cropping */
-      #arContainer video {
-        object-fit: contain !important;
-        width: 100% !important;
-        height: 100% !important;
-      }
     </style>
     <!-- Include A-Frame -->
     <script src="https://aframe.io/releases/1.2.0/aframe.min.js"></script>
@@ -55,13 +49,10 @@
       let arStartTime = 0;
       let hammer = null;
 
-      // Initialize AR scene using dynamic dimensions.
       function initializeARScene() {
         const w = window.innerWidth;
         const h = window.innerHeight;
         const arContainer = document.getElementById("arContainer");
-
-        // Inject the AR scene with dynamic resolution parameters.
         arContainer.innerHTML = `
           <a-scene embedded arjs="sourceType: webcam;
                                      sourceWidth: ${w};
@@ -79,6 +70,20 @@
 
         const sceneEl = arContainer.querySelector("a-scene");
         sceneEl.addEventListener("loaded", function () {
+          // Adjust the video element style.
+          // AR.js sometimes places the video element outside of #arContainer,
+          // so we target it globally.
+          let video = document.querySelector("video");
+          if (video) {
+            video.style.objectFit = "contain";
+            video.style.width = window.innerWidth + "px";
+            video.style.height = window.innerHeight + "px";
+            video.style.position = "absolute";
+            video.style.top = "0";
+            video.style.left = "0";
+          }
+
+          // Set up gesture controls.
           const canvas = sceneEl.canvas;
           hammer = new Hammer(canvas);
           hammer.get("rotate").set({ enable: true });
@@ -91,21 +96,18 @@
           let initialScale = 1;
           let startPosition = { x: cubeObj.position.x, z: cubeObj.position.z };
 
-          // Rotation gesture: adjust the cube’s Y-axis rotation.
           hammer.on("rotatemove", function(e) {
             cubeObj.rotation.y = initialRotationY + THREE.Math.degToRad(e.rotation);
           });
           hammer.on("rotateend", function() {
             initialRotationY = cubeObj.rotation.y;
           });
-          // Scaling gesture: adjust the cube’s scale.
           hammer.on("pinchmove", function(e) {
             cubeObj.scale.set(initialScale * e.scale, initialScale * e.scale, initialScale * e.scale);
           });
           hammer.on("pinchend", function() {
             initialScale = cubeObj.scale.x;
           });
-          // Pan gesture: adjust the cube’s position.
           hammer.on("panstart", function() {
             startPosition = { x: cubeObj.position.x, z: cubeObj.position.z };
           });
@@ -117,7 +119,6 @@
         });
       }
 
-      // Start AR session.
       document.getElementById("startButton").onclick = function() {
         document.getElementById("arContainer").style.display = "block";
         document.getElementById("startButton").style.display = "none";
@@ -126,7 +127,6 @@
         initializeARScene();
       };
 
-      // End AR session.
       document.getElementById("endButton").onclick = function() {
         document.getElementById("arContainer").innerHTML = "";
         document.getElementById("arContainer").style.display = "none";
