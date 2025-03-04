@@ -10,6 +10,8 @@
         text-align: center;
         font-family: Arial, sans-serif;
         touch-action: none;
+        margin: 0;
+        overflow: hidden;
       }
       #startButton, #surveyButton {
         padding: 10px 20px;
@@ -20,12 +22,15 @@
         border: none;
         border-radius: 5px;
         margin-top: 20px;
-        display: none;
+        position: absolute;
+        z-index: 10;
       }
+      #startButton { top: 20px; left: 20px; }
+      #surveyButton { top: 20px; right: 20px; display: none; }
     </style>
   </head>
   <body>
-    <h1>Welcome to the Interactive WebXR Application</h1>
+    <h1 style="display:none;">Welcome to the Interactive WebXR Application</h1>
     <button id="startButton">Start WebXR</button>
     <button id="surveyButton">Zurück zur Umfrage</button>
     
@@ -51,13 +56,28 @@
         };
       }
       
-      document.getElementById("startButton").style.display = "inline-block";
-      document.getElementById("startButton").onclick = async function () {
+      const startButton = document.getElementById("startButton");
+      const surveyButton = document.getElementById("surveyButton");
+      startButton.style.display = "inline-block";
+      
+      startButton.onclick = async function () {
         arStartTime = Date.now();
         arActive = true;
         
+        // Erstelle und style das Canvas, sodass es den ganzen Bildschirm füllt
         const canvas = document.createElement("canvas");
+        canvas.style.position = "absolute";
+        canvas.style.top = "0";
+        canvas.style.left = "0";
+        canvas.style.width = "100%";
+        canvas.style.height = "100%";
         document.body.appendChild(canvas);
+        
+        // Hänge Touch-Event-Listener direkt an das Canvas
+        canvas.addEventListener("touchstart", onTouchStart, false);
+        canvas.addEventListener("touchmove", onTouchMove, false);
+        canvas.addEventListener("touchend", onTouchEnd, false);
+        
         const gl = canvas.getContext("webgl", { xrCompatible: true });
         
         scene = new THREE.Scene();
@@ -120,14 +140,15 @@
           arActive = false;
           session = null;
           const elapsedTime = Math.round((Date.now() - arStartTime) / 1000);
-          document.getElementById("surveyButton").style.display = "inline-block";
-          document.getElementById("surveyButton").onclick = () => {
+          surveyButton.style.display = "inline-block";
+          surveyButton.onclick = () => {
             window.location.href = `https://ww2.unipark.de/uc/Dominik/1db8/ospe.php?return_tic=tic?a=id&b=1&c=${elapsedTime}`;
           };
         });
       };
       
-      document.addEventListener("touchstart", (event) => {
+      // Touch-Event-Handler, die direkt am Canvas registriert sind
+      function onTouchStart(event) {
         if (!arActive || !cube) return;
         if (event.touches.length === 1) {
           isDragging = true;
@@ -138,9 +159,9 @@
           previousAngle = getAngle(event.touches[0], event.touches[1]);
           previousMidpoint = getMidpoint(event.touches[0], event.touches[1]);
         }
-      });
+      }
       
-      document.addEventListener("touchmove", (event) => {
+      function onTouchMove(event) {
         if (!arActive || !cube) return;
         if (isMultiTouch && event.touches.length === 2) {
           const currentDistance = getDistance(event.touches[0], event.touches[1]);
@@ -151,7 +172,7 @@
           const scaleFactor = currentDistance / previousDistance;
           cube.scale.multiplyScalar(scaleFactor);
           
-          // Rotation (um die Y-Achse, anpassbar je nach gewünschter Achse)
+          // Rotation (um die Y-Achse, kann je nach Bedarf angepasst werden)
           const angleDelta = currentAngle - previousAngle;
           cube.rotation.y += angleDelta;
           
@@ -172,9 +193,9 @@
           cube.position.y -= deltaY * 0.001;
           previousTouch = touch;
         }
-      });
+      }
       
-      document.addEventListener("touchend", (event) => {
+      function onTouchEnd(event) {
         if (event.touches.length < 2) {
           isMultiTouch = false;
           previousDistance = null;
@@ -184,7 +205,7 @@
         if (event.touches.length === 0) {
           isDragging = false;
         }
-      });
+      }
     </script>
   </body>
 </html>
