@@ -53,10 +53,9 @@
         const w = window.innerWidth;
         const h = window.innerHeight;
         const arContainer = document.getElementById("arContainer");
+        // Removed sourceWidth/sourceHeight to let AR.js use the native camera resolution.
         arContainer.innerHTML = `
           <a-scene embedded arjs="sourceType: webcam;
-                                     sourceWidth: ${w};
-                                     sourceHeight: ${h};
                                      displayWidth: ${w};
                                      displayHeight: ${h};
                                      debugUIEnabled: false;
@@ -71,11 +70,9 @@
         const sceneEl = arContainer.querySelector("a-scene");
         sceneEl.addEventListener("loaded", function () {
           // Adjust the video element style.
-          // AR.js sometimes places the video element outside of #arContainer,
-          // so we target it globally.
           let video = document.querySelector("video");
           if (video) {
-            video.style.objectFit = "contain";
+            video.style.objectFit = "cover"; // Using "cover" fills the container appropriately
             video.style.width = window.innerWidth + "px";
             video.style.height = window.innerHeight + "px";
             video.style.position = "absolute";
@@ -131,11 +128,17 @@
         document.getElementById("arContainer").innerHTML = "";
         document.getElementById("arContainer").style.display = "none";
         document.getElementById("endButton").style.display = "none";
+        // Destroy gesture control instance to clean up resources.
+        if (hammer) {
+          hammer.destroy();
+          hammer = null;
+        }
         const elapsedTime = Math.round((Date.now() - arStartTime) / 1000);
         const surveyButton = document.getElementById("surveyButton");
         surveyButton.style.display = "inline-block";
         surveyButton.onclick = function() {
-          window.location.href = `https://ww2.unipark.de/uc/Dominik/1db8/ospe.php?return_tic=tic?a=id&b=1&c=${elapsedTime}`;
+          // Ensure proper URL query string formatting.
+          window.location.href = `https://ww2.unipark.de/uc/Dominik/1db8/ospe.php?return_tic=tic&a=id&b=1&c=${elapsedTime}`;
         };
       };
     </script>
