@@ -4,7 +4,7 @@
     <meta charset="utf-8">
     <!-- Ensure proper scaling on mobile devices -->
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Interactive WebAR Application</title>
+    <title>Markerless WebAR Application</title>
     <style>
       body {
         margin: 0;
@@ -22,18 +22,17 @@
         padding: 10px 20px;
         font-size: 1em;
       }
-      /* The AR container covers the full viewport but remains hidden initially */
       #arContainer {
         width: 100%;
         height: 100vh;
         display: none;
       }
     </style>
-    <!-- A-Frame -->
+    <!-- Include A-Frame -->
     <script src="https://aframe.io/releases/1.2.0/aframe.min.js"></script>
-    <!-- AR.js for marker-based AR -->
+    <!-- Include AR.js (this will provide the camera feed for AR) -->
     <script src="https://raw.githack.com/AR-js-org/AR.js/master/aframe/build/aframe-ar.js"></script>
-    <!-- Hammer.js for gesture support -->
+    <!-- Include Hammer.js for gesture support -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/hammer.js/2.0.8/hammer.min.js"></script>
   </head>
   <body>
@@ -49,16 +48,13 @@
       let arStartTime = 0;
       let hammer = null;
 
-      // Function to create and insert the AR scene dynamically.
+      // Initialize the AR scene with a markerless cube.
       function initializeARScene() {
         const arContainer = document.getElementById("arContainer");
         arContainer.innerHTML = `
-          <a-scene embedded arjs="sourceType: webcam;" vr-mode-ui="enabled: false">
-            <!-- The hiro marker triggers the AR content -->
-            <a-marker preset="hiro">
-              <!-- A simple blue cube -->
-              <a-box id="cube" position="0 0.5 0" material="color: blue;"></a-box>
-            </a-marker>
+          <a-scene embedded arjs="sourceType: webcam; trackingMethod: best;" vr-mode-ui="enabled: false">
+            <!-- Directly add the cube in front of the camera -->
+            <a-box id="cube" position="0 0 -3" material="color: blue;"></a-box>
             <a-entity camera></a-entity>
           </a-scene>
         `;
@@ -73,37 +69,37 @@
 
           const cubeEl = document.getElementById("cube");
           const cubeObj = cubeEl.object3D;
-          let initialRotationY = 0;
+          let initialRotationY = cubeObj.rotation.y;
           let initialScale = 1;
           let startPosition = { x: cubeObj.position.x, z: cubeObj.position.z };
 
-          // Rotation gesture handling
+          // Rotation gesture: adjust the cube's Y-axis rotation.
           hammer.on("rotatemove", function(e) {
             cubeObj.rotation.y = initialRotationY + THREE.Math.degToRad(e.rotation);
           });
           hammer.on("rotateend", function() {
             initialRotationY = cubeObj.rotation.y;
           });
-          // Scaling gesture handling
+          // Scaling gesture: adjust the cube's scale uniformly.
           hammer.on("pinchmove", function(e) {
             cubeObj.scale.set(initialScale * e.scale, initialScale * e.scale, initialScale * e.scale);
           });
           hammer.on("pinchend", function() {
             initialScale = cubeObj.scale.x;
           });
-          // Pan (translation) gesture handling
+          // Pan gesture: adjust the cube's X and Z position.
           hammer.on("panstart", function() {
             startPosition = { x: cubeObj.position.x, z: cubeObj.position.z };
           });
           hammer.on("panmove", function(e) {
-            const movementFactor = 0.01; // Adjust sensitivity as needed
+            const movementFactor = 0.01; // Adjust sensitivity as needed.
             cubeObj.position.x = startPosition.x + e.deltaX * movementFactor;
             cubeObj.position.z = startPosition.z + e.deltaY * movementFactor;
           });
         });
       }
 
-      // Start AR session: inject the AR scene and set up the gesture interactions.
+      // Start AR session: inject the AR scene, set up gestures, and show/hide buttons.
       document.getElementById("startButton").onclick = function() {
         document.getElementById("arContainer").style.display = "block";
         document.getElementById("startButton").style.display = "none";
@@ -112,7 +108,7 @@
         initializeARScene();
       };
 
-      // End AR session: remove the AR scene and show the survey button with elapsed time.
+      // End AR session: remove the AR scene and show the survey button with the elapsed time.
       document.getElementById("endButton").onclick = function() {
         document.getElementById("arContainer").innerHTML = "";
         document.getElementById("arContainer").style.display = "none";
