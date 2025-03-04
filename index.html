@@ -33,7 +33,24 @@
       let arStartTime, arActive = false;
       let cube, scene, renderer, camera, session;
       let isDragging = false, previousTouch;
-
+      let isMultiTouch = false, previousDistance = null, previousAngle = null, previousMidpoint = null;
+      
+      // Helper-Funktionen für Multitouch
+      function getDistance(touch1, touch2) {
+        let dx = touch2.clientX - touch1.clientX;
+        let dy = touch2.clientY - touch1.clientY;
+        return Math.sqrt(dx * dx + dy * dy);
+      }
+      function getAngle(touch1, touch2) {
+        return Math.atan2(touch2.clientY - touch1.clientY, touch2.clientX - touch1.clientX);
+      }
+      function getMidpoint(touch1, touch2) {
+        return {
+          x: (touch1.clientX + touch2.clientX) / 2,
+          y: (touch1.clientY + touch2.clientY) / 2
+        };
+      }
+      
       document.getElementById("startButton").style.display = "inline-block";
       document.getElementById("startButton").onclick = async function () {
         arStartTime = Date.now();
@@ -115,22 +132,58 @@
         if (event.touches.length === 1) {
           isDragging = true;
           previousTouch = event.touches[0];
+        } else if (event.touches.length === 2) {
+          isMultiTouch = true;
+          previousDistance = getDistance(event.touches[0], event.touches[1]);
+          previousAngle = getAngle(event.touches[0], event.touches[1]);
+          previousMidpoint = getMidpoint(event.touches[0], event.touches[1]);
         }
       });
-
+      
       document.addEventListener("touchmove", (event) => {
-        if (!arActive || !isDragging || event.touches.length !== 1) return;
-        const touch = event.touches[0];
-        const deltaX = touch.clientX - previousTouch.clientX;
-        const deltaY = touch.clientY - previousTouch.clientY;
-        
-        cube.position.x += deltaX * 0.001;
-        cube.position.y -= deltaY * 0.001;
-        previousTouch = touch;
+        if (!arActive || !cube) return;
+        if (isMultiTouch && event.touches.length === 2) {
+          const currentDistance = getDistance(event.touches[0], event.touches[1]);
+          const currentAngle = getAngle(event.touches[0], event.touches[1]);
+          const currentMidpoint = getMidpoint(event.touches[0], event.touches[1]);
+          
+          // Skalierung (uniform)
+          const scaleFactor = currentDistance / previousDistance;
+          cube.scale.multiplyScalar(scaleFactor);
+          
+          // Rotation (um die Y-Achse, anpassbar je nach gewünschter Achse)
+          const angleDelta = currentAngle - previousAngle;
+          cube.rotation.y += angleDelta;
+          
+          // Translation anhand der Bewegung des Mittelpunkts
+          const deltaX = currentMidpoint.x - previousMidpoint.x;
+          const deltaY = currentMidpoint.y - previousMidpoint.y;
+          cube.position.x += deltaX * 0.001;
+          cube.position.y -= deltaY * 0.001;
+          
+          previousDistance = currentDistance;
+          previousAngle = currentAngle;
+          previousMidpoint = currentMidpoint;
+        } else if (isDragging && event.touches.length === 1) {
+          const touch = event.touches[0];
+          const deltaX = touch.clientX - previousTouch.clientX;
+          const deltaY = touch.clientY - previousTouch.clientY;
+          cube.position.x += deltaX * 0.001;
+          cube.position.y -= deltaY * 0.001;
+          previousTouch = touch;
+        }
       });
-
-      document.addEventListener("touchend", () => {
-        isDragging = false;
+      
+      document.addEventListener("touchend", (event) => {
+        if (event.touches.length < 2) {
+          isMultiTouch = false;
+          previousDistance = null;
+          previousAngle = null;
+          previousMidpoint = null;
+        }
+        if (event.touches.length === 0) {
+          isDragging = false;
+        }
       });
     </script>
   </body>
