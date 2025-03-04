@@ -26,6 +26,13 @@
         width: 100%;
         height: 100vh;
         display: none;
+        position: relative;
+      }
+      /* Force AR.js's video to scale to the container without cropping */
+      #arContainer video {
+        object-fit: contain !important;
+        width: 100% !important;
+        height: 100% !important;
       }
     </style>
     <!-- Include A-Frame -->
@@ -50,7 +57,6 @@
 
       // Initialize AR scene using dynamic dimensions.
       function initializeARScene() {
-        // Read the device's viewport dimensions.
         const w = window.innerWidth;
         const h = window.innerHeight;
         const arContainer = document.getElementById("arContainer");
@@ -71,7 +77,6 @@
           </a-scene>
         `;
 
-        // Set up Hammer.js for gesture controls once the scene is loaded.
         const sceneEl = arContainer.querySelector("a-scene");
         sceneEl.addEventListener("loaded", function () {
           const canvas = sceneEl.canvas;
@@ -105,7 +110,7 @@
             startPosition = { x: cubeObj.position.x, z: cubeObj.position.z };
           });
           hammer.on("panmove", function(e) {
-            const movementFactor = 0.01; // Adjust sensitivity if needed.
+            const movementFactor = 0.01;
             cubeObj.position.x = startPosition.x + e.deltaX * movementFactor;
             cubeObj.position.z = startPosition.z + e.deltaY * movementFactor;
           });
