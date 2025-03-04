@@ -68,7 +68,11 @@
           return;
         }
         
-        session = await navigator.xr.requestSession("immersive-ar", { requiredFeatures: ["local-floor", "hand-tracking"] });
+        // "hand-tracking" als optionales Feature angefragt
+        session = await navigator.xr.requestSession("immersive-ar", { 
+          requiredFeatures: ["local-floor"],
+          optionalFeatures: ["hand-tracking"]
+        });
         session.updateRenderState({ baseLayer: new XRWebGLLayer(session, gl) });
         const referenceSpace = await session.requestReferenceSpace("local-floor");
         
