@@ -1,193 +1,104 @@
 <!DOCTYPE html>
 <html>
   <head>
-    <title>WebXR Interactive Cube (Mobile Support)</title>
-    <script src="https://unpkg.com/three@0.126.0/build/three.js"></script>
-    <script src="https://unpkg.com/three@0.126.0/examples/jsm/webxr/XRControllerModelFactory.js"></script>
-    <script src="https://unpkg.com/three@0.126.0/examples/jsm/webxr/XRHandModelFactory.js"></script>
+    <meta charset="utf-8">
+    <title>Interactive WebAR Application</title>
     <style>
-      body {
-        text-align: center;
-        font-family: Arial, sans-serif;
-        touch-action: none;
-      }
-      #startButton, #surveyButton {
-        padding: 10px 20px;
-        font-size: 18px;
-        cursor: pointer;
-        background-color: #007BFF;
-        color: white;
-        border: none;
-        border-radius: 5px;
-        margin-top: 20px;
-        display: none;
-      }
+      body { margin: 0; overflow: hidden; }
+      /* Initially hide the AR scene container, the end button, and the survey button */
+      #arContainer, #endButton, #surveyButton { display: none; }
     </style>
+    <!-- Include A-Frame -->
+    <script src="https://aframe.io/releases/1.2.0/aframe.min.js"></script>
+    <!-- Include AR.js for marker-based AR -->
+    <script src="https://raw.githack.com/AR-js-org/AR.js/master/aframe/build/aframe-ar.js"></script>
+    <!-- Include Hammer.js for gesture support -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/hammer.js/2.0.8/hammer.min.js"></script>
   </head>
   <body>
     <h1>Welcome to the Interactive WebXR Application</h1>
     <button id="startButton">Start WebXR</button>
+    <button id="endButton">End AR Session</button>
     <button id="surveyButton">Zurück zur Umfrage</button>
-    
+
+    <!-- AR container: hidden until the user starts the session -->
+    <div id="arContainer">
+      <a-scene embedded arjs="sourceType: webcam;">
+        <!-- Use the hiro marker to display the AR content -->
+        <a-marker preset="hiro">
+          <!-- A simple blue cube with an initial position -->
+          <a-box id="cube" position="0 0.5 0" material="color: blue;"></a-box>
+        </a-marker>
+        <a-entity camera></a-entity>
+      </a-scene>
+    </div>
+
     <script>
-      let arStartTime, arActive = false;
-      let cube, scene, renderer, camera, session;
-      let isDragging = false, previousTouch;
-      let isMultiTouch = false, previousDistance = null, previousAngle = null, previousMidpoint = null;
-      let canvas; // Referenz zum Canvas speichern
-      
-      // Hilfsfunktionen für Multitouch
-      function getDistance(touch1, touch2) {
-        let dx = touch2.clientX - touch1.clientX;
-        let dy = touch2.clientY - touch1.clientY;
-        return Math.sqrt(dx * dx + dy * dy);
-      }
-      function getAngle(touch1, touch2) {
-        return Math.atan2(touch2.clientY - touch1.clientY, touch2.clientX - touch1.clientX);
-      }
-      function getMidpoint(touch1, touch2) {
-        return {
-          x: (touch1.clientX + touch2.clientX) / 2,
-          y: (touch1.clientY + touch2.clientY) / 2
-        };
-      }
-      
-      document.getElementById("startButton").style.display = "inline-block";
-      document.getElementById("startButton").onclick = async function () {
+      let arStartTime = 0;
+
+      // Start button: show AR container and initialize gesture controls
+      document.getElementById("startButton").onclick = function() {
+        document.getElementById("arContainer").style.display = "block";
+        document.getElementById("startButton").style.display = "none";
+        document.getElementById("endButton").style.display = "inline-block";
         arStartTime = Date.now();
-        arActive = true;
-        
-        canvas = document.createElement("canvas");
-        document.body.appendChild(canvas);
-        const gl = canvas.getContext("webgl", { xrCompatible: true });
-        
-        scene = new THREE.Scene();
-        renderer = new THREE.WebGLRenderer({ alpha: true, preserveDrawingBuffer: true, canvas: canvas, context: gl });
-        renderer.autoClear = false;
-        renderer.xr.enabled = true;
-        
-        camera = new THREE.PerspectiveCamera();
-        camera.matrixAutoUpdate = false;
-        
-        const materials = [
-          new THREE.MeshBasicMaterial({ color: 0xff0000 }),
-          new THREE.MeshBasicMaterial({ color: 0x0000ff }),
-          new THREE.MeshBasicMaterial({ color: 0x00ff00 }),
-          new THREE.MeshBasicMaterial({ color: 0xff00ff }),
-          new THREE.MeshBasicMaterial({ color: 0x00ffff }),
-          new THREE.MeshBasicMaterial({ color: 0xffff00 })
-        ];
-        cube = new THREE.Mesh(new THREE.BoxBufferGeometry(0.2, 0.2, 0.2), materials);
-        cube.position.set(0, 0, -1);
-        scene.add(cube);
-        
-        if (!navigator.xr) {
-          alert("WebXR is not supported on this browser.");
-          return;
-        }
-        
-        session = await navigator.xr.requestSession("immersive-ar", { 
-          requiredFeatures: ["local-floor"],
-          optionalFeatures: ["hand-tracking"]
+
+        // Wait for the A-Frame scene to load
+        const sceneEl = document.querySelector("a-scene");
+        sceneEl.addEventListener("loaded", function () {
+          const canvas = sceneEl.canvas;
+          const hammer = new Hammer(canvas);
+
+          // Enable gesture recognizers.
+          hammer.get("rotate").set({ enable: true });
+          hammer.get("pinch").set({ enable: true });
+          hammer.get("pan").set({ direction: Hammer.DIRECTION_ALL });
+
+          // Get a reference to the cube.
+          const cubeEl = document.getElementById("cube");
+          const cubeObj = cubeEl.object3D;
+          let initialRotationY = 0;
+          let initialScale = 1;
+          let startPosition = { x: cubeObj.position.x, z: cubeObj.position.z };
+
+          // Rotation: update the cube's Y-axis rotation.
+          hammer.on("rotatemove", function(e) {
+            cubeObj.rotation.y = initialRotationY + THREE.Math.degToRad(e.rotation);
+          });
+          hammer.on("rotateend", function() {
+            initialRotationY = cubeObj.rotation.y;
+          });
+
+          // Scaling: update the cube's scale uniformly.
+          hammer.on("pinchmove", function(e) {
+            cubeObj.scale.set(initialScale * e.scale, initialScale * e.scale, initialScale * e.scale);
+          });
+          hammer.on("pinchend", function() {
+            initialScale = cubeObj.scale.x;
+          });
+
+          // Translation: update the cube's position along the X and Z axes.
+          hammer.on("panstart", function() {
+            startPosition = { x: cubeObj.position.x, z: cubeObj.position.z };
+          });
+          hammer.on("panmove", function(e) {
+            const movementFactor = 0.01; // adjust as needed
+            cubeObj.position.x = startPosition.x + e.deltaX * movementFactor;
+            cubeObj.position.z = startPosition.z + e.deltaY * movementFactor;
+          });
         });
-        session.updateRenderState({ baseLayer: new XRWebGLLayer(session, gl) });
-        const referenceSpace = await session.requestReferenceSpace("local-floor");
-        
-        renderer.xr.setReferenceSpaceType("local-floor");
-        renderer.xr.setSession(session);
-        
-        // Touch-Event-Listener direkt am Canvas registrieren
-        canvas.addEventListener("touchstart", (event) => {
-          event.preventDefault();
-          if (!arActive || !cube) return;
-          if (event.touches.length === 1) {
-            isDragging = true;
-            previousTouch = event.touches[0];
-          } else if (event.touches.length === 2) {
-            isMultiTouch = true;
-            previousDistance = getDistance(event.touches[0], event.touches[1]);
-            previousAngle = getAngle(event.touches[0], event.touches[1]);
-            previousMidpoint = getMidpoint(event.touches[0], event.touches[1]);
-          }
-        });
-        
-        canvas.addEventListener("touchmove", (event) => {
-          event.preventDefault();
-          if (!arActive || !cube) return;
-          if (isMultiTouch && event.touches.length === 2) {
-            const currentDistance = getDistance(event.touches[0], event.touches[1]);
-            const currentAngle = getAngle(event.touches[0], event.touches[1]);
-            const currentMidpoint = getMidpoint(event.touches[0], event.touches[1]);
-            
-            // Gleichmäßige Skalierung
-            const scaleFactor = currentDistance / previousDistance;
-            cube.scale.multiplyScalar(scaleFactor);
-            
-            // Rotation um die Y-Achse
-            const angleDelta = currentAngle - previousAngle;
-            cube.rotation.y += angleDelta;
-            
-            // Translation basierend auf der Bewegung des Mittelpunkts
-            const deltaX = currentMidpoint.x - previousMidpoint.x;
-            const deltaY = currentMidpoint.y - previousMidpoint.y;
-            cube.position.x += deltaX * 0.001;
-            cube.position.y -= deltaY * 0.001;
-            
-            previousDistance = currentDistance;
-            previousAngle = currentAngle;
-            previousMidpoint = currentMidpoint;
-          } else if (isDragging && event.touches.length === 1) {
-            const touch = event.touches[0];
-            const deltaX = touch.clientX - previousTouch.clientX;
-            const deltaY = touch.clientY - previousTouch.clientY;
-            cube.position.x += deltaX * 0.001;
-            cube.position.y -= deltaY * 0.001;
-            previousTouch = touch;
-          }
-        });
-        
-        canvas.addEventListener("touchend", (event) => {
-          event.preventDefault();
-          if (event.touches.length < 2) {
-            isMultiTouch = false;
-            previousDistance = null;
-            previousAngle = null;
-            previousMidpoint = null;
-          }
-          if (event.touches.length === 0) {
-            isDragging = false;
-          }
-        });
-        
-        const onXRFrame = (time, frame) => {
-          if (!session) return;
-          session.requestAnimationFrame(onXRFrame);
-          gl.bindFramebuffer(gl.FRAMEBUFFER, session.renderState.baseLayer.framebuffer);
-          
-          const pose = frame.getViewerPose(referenceSpace);
-          if (pose) {
-            const view = pose.views[0];
-            const viewport = session.renderState.baseLayer.getViewport(view);
-            renderer.setSize(viewport.width, viewport.height);
-            camera.matrix.fromArray(view.transform.matrix);
-            camera.projectionMatrix.fromArray(view.projectionMatrix);
-            camera.updateMatrixWorld(true);
-            renderer.clear();
-            renderer.render(scene, camera);
-          }
+      };
+
+      // End button: hide AR scene and show the survey button with elapsed time parameter.
+      document.getElementById("endButton").onclick = function() {
+        document.getElementById("arContainer").style.display = "none";
+        document.getElementById("endButton").style.display = "none";
+        const elapsedTime = Math.round((Date.now() - arStartTime) / 1000);
+        const surveyButton = document.getElementById("surveyButton");
+        surveyButton.style.display = "inline-block";
+        surveyButton.onclick = function() {
+          window.location.href = `https://ww2.unipark.de/uc/Dominik/1db8/ospe.php?return_tic=tic?a=id&b=1&c=${elapsedTime}`;
         };
-        
-        session.requestAnimationFrame(onXRFrame);
-        
-        session.addEventListener("end", () => {
-          arActive = false;
-          session = null;
-          const elapsedTime = Math.round((Date.now() - arStartTime) / 1000);
-          document.getElementById("surveyButton").style.display = "inline-block";
-          document.getElementById("surveyButton").onclick = () => {
-            window.location.href = `https://ww2.unipark.de/uc/Dominik/1db8/ospe.php?return_tic=tic?a=id&b=1&c=${elapsedTime}`;
-          };
-        });
       };
     </script>
   </body>
