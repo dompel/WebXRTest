@@ -1,12 +1,15 @@
 <!DOCTYPE html>
 <html>
   <head>
-    <title>Web XR Example</title>
+    <title>WebXR Interactive Cube (Mobile Support)</title>
     <script src="https://unpkg.com/three@0.126.0/build/three.js"></script>
+    <script src="https://unpkg.com/three@0.126.0/examples/jsm/webxr/XRControllerModelFactory.js"></script>
+    <script src="https://unpkg.com/three@0.126.0/examples/jsm/webxr/XRHandModelFactory.js"></script>
     <style>
       body {
         text-align: center;
         font-family: Arial, sans-serif;
+        touch-action: none;
       }
       #startButton, #surveyButton {
         padding: 10px 20px;
@@ -22,62 +25,59 @@
     </style>
   </head>
   <body>
-    <h1>Welcome to the Test WebXR Application</h1>
-    <button id="startButton">Start Hello WebXR</button>
+    <h1>Welcome to the Interactive WebXR Application</h1>
+    <button id="startButton">Start WebXR</button>
     <button id="surveyButton">Zurück zur Umfrage</button>
     
     <script>
-      // Funktion zum Abrufen des URL-Parameters
-      function getQueryParam(param) {
-        const urlParams = new URLSearchParams(window.location.search);
-        return urlParams.get(param);
-      }
+      let arStartTime, arActive = false;
+      let cube, scene, renderer, camera;
+      let isDragging = false, previousTouch;
 
-      let arStartTime;
-      let arActive = false;
-      const id = getQueryParam("ID") || "";
-      const tic = getQueryParam("tic")|| "";
-      const startButton = document.getElementById("startButton");
-      const surveyButton = document.getElementById("surveyButton");
-
-      startButton.style.display = "inline-block";
-      startButton.onclick = async function () {
+      document.getElementById("startButton").style.display = "inline-block";
+      document.getElementById("startButton").onclick = async function () {
         arStartTime = Date.now();
         arActive = true;
         
-        // WebXR Initialisierung
         const canvas = document.createElement("canvas");
         document.body.appendChild(canvas);
-        const gl = canvas.getContext("webgl", {xrCompatible: true});
-        const scene = new THREE.Scene();
+        const gl = canvas.getContext("webgl", { xrCompatible: true });
+        
+        scene = new THREE.Scene();
+        renderer = new THREE.WebGLRenderer({ alpha: true, preserveDrawingBuffer: true, canvas: canvas, context: gl });
+        renderer.autoClear = false;
+        
+        camera = new THREE.PerspectiveCamera();
+        camera.matrixAutoUpdate = false;
+        
         const materials = [
-          new THREE.MeshBasicMaterial({color: 0xff0000}),
-          new THREE.MeshBasicMaterial({color: 0x0000ff}),
-          new THREE.MeshBasicMaterial({color: 0x00ff00}),
-          new THREE.MeshBasicMaterial({color: 0xff00ff}),
-          new THREE.MeshBasicMaterial({color: 0x00ffff}),
-          new THREE.MeshBasicMaterial({color: 0xffff00})
+          new THREE.MeshBasicMaterial({ color: 0xff0000 }),
+          new THREE.MeshBasicMaterial({ color: 0x0000ff }),
+          new THREE.MeshBasicMaterial({ color: 0x00ff00 }),
+          new THREE.MeshBasicMaterial({ color: 0xff00ff }),
+          new THREE.MeshBasicMaterial({ color: 0x00ffff }),
+          new THREE.MeshBasicMaterial({ color: 0xffff00 })
         ];
-        const cube = new THREE.Mesh(new THREE.BoxBufferGeometry(0.2, 0.2, 0.2), materials);
+        cube = new THREE.Mesh(new THREE.BoxBufferGeometry(0.2, 0.2, 0.2), materials);
         cube.position.set(0, 0, -1);
         scene.add(cube);
-        const renderer = new THREE.WebGLRenderer({ alpha: true, preserveDrawingBuffer: true, canvas: canvas, context: gl });
-        renderer.autoClear = false;
-        const camera = new THREE.PerspectiveCamera();
-        camera.matrixAutoUpdate = false;
         
         if (!navigator.xr) {
           alert("WebXR is not supported on this browser.");
           return;
         }
         
-        const session = await navigator.xr.requestSession("immersive-ar");
+        const session = await navigator.xr.requestSession("immersive-ar", { requiredFeatures: ["local-floor", "hand-tracking"] });
         session.updateRenderState({ baseLayer: new XRWebGLLayer(session, gl) });
-        const referenceSpace = await session.requestReferenceSpace('local');
-
+        const referenceSpace = await session.requestReferenceSpace("local-floor");
+        
+        renderer.xr.setReferenceSpaceType("local-floor");
+        renderer.xr.setSession(session);
+        
         const onXRFrame = (time, frame) => {
           session.requestAnimationFrame(onXRFrame);
           gl.bindFramebuffer(gl.FRAMEBUFFER, session.renderState.baseLayer.framebuffer);
+          
           const pose = frame.getViewerPose(referenceSpace);
           if (pose) {
             const view = pose.views[0];
@@ -96,11 +96,35 @@
         session.addEventListener("end", () => {
           arActive = false;
           const elapsedTime = Math.round((Date.now() - arStartTime) / 1000);
-          const surveyUrl = `https://ww2.unipark.de/uc/Dominik/1db8/ospe.php?return_tic=${tic}?a=${id}&b=1&c=${elapsedTime}`;
-          surveyButton.style.display = "inline-block";
-          surveyButton.onclick = () => window.location.href = surveyUrl;
+          document.getElementById("surveyButton").style.display = "inline-block";
+          document.getElementById("surveyButton").onclick = () => {
+            window.location.href = `https://ww2.unipark.de/uc/Dominik/1db8/ospe.php?return_tic=tic?a=id&b=1&c=${elapsedTime}`;
+          };
         });
       };
+      
+      document.addEventListener("touchstart", (event) => {
+        if (event.touches.length === 1) {
+          isDragging = true;
+          previousTouch = event.touches[0];
+        }
+      });
+
+      document.addEventListener("touchmove", (event) => {
+        if (isDragging && event.touches.length === 1) {
+          const touch = event.touches[0];
+          const deltaX = touch.clientX - previousTouch.clientX;
+          const deltaY = touch.clientY - previousTouch.clientY;
+          
+          cube.position.x += deltaX * 0.001;
+          cube.position.y -= deltaY * 0.001;
+          previousTouch = touch;
+        }
+      });
+
+      document.addEventListener("touchend", () => {
+        isDragging = false;
+      });
     </script>
   </body>
 </html>
