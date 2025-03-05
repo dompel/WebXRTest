@@ -40,7 +40,13 @@
     <button id="surveyButton" style="display: none;">Zurück zur Umfrage</button>
 
     <!-- Container for the AR scene -->
-    <div id="arContainer"></div>
+    <!--<div id="arContainer">-->
+        <a-scene vr-mode-ui='enabled: false' arjs='sourceType: webcam; videoTexture: true; debugUIEnabled: false' renderer='antialias: true; alpha: true'>
+            <!-- Place the cube  in front of the camera -->
+            <a-box position="0 0 -1" rotation="0 45 0" color="#4CC3D9"></a-box>
+            <a-entity camera></a-entity>
+        </a-scene>
+    <!--</div>-->
 
     <script>
       let arStartTime = 0;
@@ -48,15 +54,6 @@
 
       function initializeARScene() {
         const arContainer = document.getElementById("arContainer");
-        // Removed sourceWidth/sourceHeight to let AR.js use the native camera resolution.
-        arContainer.innerHTML = `
-          <a-scene vr-mode-ui='enabled: false' arjs='sourceType: webcam; videoTexture: true; debugUIEnabled: false' renderer='antialias: true; alpha: true'>
-            <!-- Place the cube  in front of the camera -->
-            <a-box position="0 0 -1" rotation="0 45 0" color="#4CC3D9"></a-box>
-            <a-entity camera></a-entity>
-          </a-scene>
-        `;
-
         const sceneEl = arContainer.querySelector("a-scene");
 
        }
