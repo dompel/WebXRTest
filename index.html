@@ -29,12 +29,9 @@
         display: none;
       }
     </style>
-    <!-- Include A-Frame -->
-    <script src="https://aframe.io/releases/1.2.0/aframe.min.js"></script>
-    <!-- Include AR.js for markerless AR -->
-    <script src="https://raw.githack.com/AR-js-org/AR.js/master/aframe/build/aframe-ar.js"></script>
-    <!-- Include Hammer.js for gesture support -->
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/hammer.js/2.0.8/hammer.min.js"></script>
+    <!-- import aframe and then ar.js with image tracking / location based features -->
+    <script src="https://aframe.io/releases/1.7.0/aframe.min.js"></script>
+    <script src="https://raw.githack.com/AR-js-org/AR.js/master/aframe/build/aframe-ar-nft.js"></script>
   </head>
   <body>
     <h1>Welcome to the Adaptive WebAR Application</h1>
@@ -50,66 +47,19 @@
       let hammer = null;
 
       function initializeARScene() {
-        const w = window.innerWidth;
-        const h = window.innerHeight;
         const arContainer = document.getElementById("arContainer");
         // Removed sourceWidth/sourceHeight to let AR.js use the native camera resolution.
         arContainer.innerHTML = `
-          <a-scene embedded arjs="sourceType: webcam;" vr-mode-ui="enabled: false">
-            <!-- Place the cube directly in front of the camera -->
-            <a-box id="cube" position="0 0 -1" material="color: blue;"></a-box>
+          <a-scene vr-mode-ui='enabled: false' arjs='sourceType: webcam; videoTexture: true; debugUIEnabled: false' renderer='antialias: true; alpha: true'>
+            <!-- Place the cube  in front of the camera -->
+            <a-box position="0 0 -1" rotation="0 45 0" color="#4CC3D9"></a-box>
             <a-entity camera></a-entity>
           </a-scene>
         `;
 
         const sceneEl = arContainer.querySelector("a-scene");
-        sceneEl.addEventListener("loaded", function () {
-          // Adjust the video element style.
-          let video = document.querySelector("video");
-          if (video) {
-            video.style.objectFit = "cover"; // Using "cover" fills the container appropriately
-            video.style.width = window.innerWidth + "px";
-            video.style.height = window.innerHeight + "px";
-            video.style.position = "absolute";
-            video.style.top = "0";
-            video.style.left = "0";
-          }
 
-          // Set up gesture controls.
-          const canvas = sceneEl.canvas;
-          hammer = new Hammer(canvas);
-          hammer.get("rotate").set({ enable: true });
-          hammer.get("pinch").set({ enable: true });
-          hammer.get("pan").set({ direction: Hammer.DIRECTION_ALL });
-
-          const cubeEl = document.getElementById("cube");
-          const cubeObj = cubeEl.object3D;
-          let initialRotationY = cubeObj.rotation.y;
-          let initialScale = 1;
-          let startPosition = { x: cubeObj.position.x, z: cubeObj.position.z };
-
-          hammer.on("rotatemove", function(e) {
-            cubeObj.rotation.y = initialRotationY + THREE.Math.degToRad(e.rotation);
-          });
-          hammer.on("rotateend", function() {
-            initialRotationY = cubeObj.rotation.y;
-          });
-          hammer.on("pinchmove", function(e) {
-            cubeObj.scale.set(initialScale * e.scale, initialScale * e.scale, initialScale * e.scale);
-          });
-          hammer.on("pinchend", function() {
-            initialScale = cubeObj.scale.x;
-          });
-          hammer.on("panstart", function() {
-            startPosition = { x: cubeObj.position.x, z: cubeObj.position.z };
-          });
-          hammer.on("panmove", function(e) {
-            const movementFactor = 0.01;
-            cubeObj.position.x = startPosition.x + e.deltaX * movementFactor;
-            cubeObj.position.z = startPosition.z + e.deltaY * movementFactor;
-          });
-        });
-      }
+       }
 
       document.getElementById("startButton").onclick = function() {
         document.getElementById("arContainer").style.display = "block";
@@ -123,11 +73,6 @@
         document.getElementById("arContainer").innerHTML = "";
         document.getElementById("arContainer").style.display = "none";
         document.getElementById("endButton").style.display = "none";
-        // Destroy gesture control instance to clean up resources.
-        if (hammer) {
-          hammer.destroy();
-          hammer = null;
-        }
         const elapsedTime = Math.round((Date.now() - arStartTime) / 1000);
         const surveyButton = document.getElementById("surveyButton");
         surveyButton.style.display = "inline-block";
