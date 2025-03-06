@@ -53,45 +53,46 @@
 
       async function selectBestRearCamera() {
         try {
-            let devices = await navigator.mediaDevices.enumerateDevices();
-            let cameras = devices.filter(device => device.kind === "videoinput");
+          await navigator.mediaDevices.getUserMedia({ video: true });
+          let devices = await navigator.mediaDevices.enumerateDevices();
+          let cameras = devices.filter(device => device.kind === "videoinput");
 
-            if (cameras.length === 0) {
-                console.error("No cameras found.");
-                return;
-            }
-            
-            // Select the best rear camera (fallback to first camera if none labeled "back")
-            let bestCamera = cameras.find(camera => camera.label.toLowerCase().includes("back")) || cameras[0];
+          if (cameras.length === 0) {
+              console.error("No cameras found.");
+              return;
+          }
+          
+          // Select the best rear camera (fallback to first camera if none labeled "back")
+          let bestCamera = cameras.find(camera => camera.label.toLowerCase().includes("back")) || cameras[0];
 
-            document.getElementById("log").innerHTML = "Camera 1 " + cameras.length;
+          document.getElementById("log").innerHTML = "Camera 1 " + cameras.length;
 
-            let constraints = {
-              video: { deviceId: bestCamera.deviceId ? { exact: bestCamera.deviceId } : undefined }
-            };
+          let constraints = {
+            video: { deviceId: bestCamera.deviceId ? { exact: bestCamera.deviceId } : undefined }
+          };
 
-            // Wait for AR.js to create the video element
-            let arVideoElement = await new Promise((resolve, reject) => {
-                let checkVideo = setInterval(() => {
-                    let video = document.querySelector("video");
-                    if (video) {
-                        clearInterval(checkVideo);
-                        resolve(video);
-                    }
-                }, 500);
-                setTimeout(() => {
-                    clearInterval(checkVideo);
-                    reject("AR.js video element not found.");
-                }, 5000); // Timeout after 5 seconds
-            });
+          // Wait for AR.js to create the video element
+          let arVideoElement = await new Promise((resolve, reject) => {
+              let checkVideo = setInterval(() => {
+                  let video = document.querySelector("video");
+                  if (video) {
+                      clearInterval(checkVideo);
+                      resolve(video);
+                  }
+              }, 500);
+              setTimeout(() => {
+                  clearInterval(checkVideo);
+                  reject("AR.js video element not found.");
+              }, 5000); // Timeout after 5 seconds
+          });
 
-            // Switch AR.js video element to use the best rear camera
-            let stream = await navigator.mediaDevices.getUserMedia(constraints);
-            arVideoElement.srcObject = stream;
+          // Switch AR.js video element to use the best rear camera
+          let stream = await navigator.mediaDevices.getUserMedia(constraints);
+          arVideoElement.srcObject = stream;
 
-        } catch (error) {
-            console.error("Error switching to best camera: ", error);
-        }
+      } catch (error) {
+          console.error("Error switching to best camera: ", error);
+      }
     }
 
       document.addEventListener("DOMContentLoaded", async function () {
