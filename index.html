@@ -62,9 +62,7 @@
             }
             
             // Select the best rear camera (fallback to first camera if none labeled "back")
-            let bestCamera = cameras.find(camera => camera.label.toLowerCase().includes("back")) || cameras[0];
-
-            document.getElementById("log").innerHTML = "Device ID: " + bestCamera.label;
+            let bestCamera = cameras.find(camera => camera.label.toLowerCase().includes("back")) || cameras[1];
 
             let constraints = {
               video: { deviceId: bestCamera.deviceId ? { exact: bestCamera.deviceId } : undefined }
