@@ -46,7 +46,7 @@
     </a-scene>
 
     <script>
-      export const mobile = {
+      const mobile = {
         // Detect if the device supports touch
         hasTouchSupport() {
           return (
@@ -118,7 +118,7 @@
             let bestCamera = cameras.find(camera => camera.label.toLowerCase().includes("back")) || cameras[0];
 
             mobile.log(bestCamera.deviceId)
-            
+
             let constraints = {
                 video: { deviceId: bestCamera.deviceId ? { exact: bestCamera.deviceId } : undefined }
             };
