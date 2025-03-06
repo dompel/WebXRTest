@@ -40,88 +40,142 @@
     <button id="endButton" style="display: none;">End AR Session</button>
     <button id="surveyButton" style="display: none;">Zurück zur Umfrage</button>
 
-    <div id="cameraSelectContainer">
-      <label for="cameraSelect">Choose a Camera:</label>
-      <select id="cameraSelect"></select>
-      <button id="confirmCamera">Confirm</button>
-    </div>
-
     <a-scene id="scene" vr-mode-ui='enabled: false' arjs='sourceType: webcam; videoTexture: true; debugUIEnabled: false' renderer='antialias: true; alpha: true'>
       <a-box position="0 0 -1" scale="0.5 0.5 0.2" rotation="0 45 0" color="#4CC3D9"></a-box>
       <a-entity id="cameraEntity" camera></a-entity>
     </a-scene>
 
     <script>
-      let arStartTime = 0;
+      export const mobile = {
+        // Detect if the device supports touch
+        hasTouchSupport() {
+          return (
+            'ontouchstart' in window || 
+            navigator.maxTouchPoints > 0 || 
+            window.matchMedia('(pointer: coarse)').matches
+          );
+        },
 
-      let selectedCameraId = null;
-      
-      async function selectBestRearCamera() {
-        try {
-          let devices = await navigator.mediaDevices.enumerateDevices();
-          let cameras = devices.filter(device => device.kind === "videoinput");
-          
-          if (cameras.length === 0) {
-            console.error("No cameras found.");
+        // Custom log function
+        log(...args) {
+          if (!this.hasTouchSupport()) return;
+
+          // Format output
+          let output = args.map((arg) => {
+            if (typeof arg === "object") {
+              return JSON.stringify(arg, null, 2);
+            }
+            return arg;
+          }).join(" ");
+
+          // Check if the log viewer already exists
+          const hasMobileViewer = document.getElementById("mobileLog");
+          if (hasMobileViewer) {
+            const updatedContent = hasMobileViewer.innerHTML.concat("<br>").concat(output);
+            hasMobileViewer.innerHTML = updatedContent;
+            hasMobileViewer.scrollTop = hasMobileViewer.scrollHeight;
             return;
           }
-          
-          let cameraSelect = document.getElementById("cameraSelect");
-          cameraSelect.innerHTML = "";
-          
-          cameras.forEach(camera => {
-            let option = document.createElement("option");
-            option.value = camera.deviceId;
-            option.textContent = camera.label || `Camera ${cameraSelect.length + 1}`;
-            cameraSelect.appendChild(option);
-          });
-          
-          document.getElementById("cameraSelectContainer").style.display = "block";
-        } catch (error) {
-          console.error("Error fetching cameras: ", error);
-        }
-      }
-      
-      document.getElementById("confirmCamera").onclick = async function() {
-        selectedCameraId = document.getElementById("cameraSelect").value;
-        document.getElementById("cameraSelectContainer").style.display = "none";
-        await startAR(selectedCameraId);
+
+          // Create the log viewer
+          const viewer = document.createElement("div");
+          viewer.id = "mobileLog";
+          viewer.style.width = "100vw";
+          viewer.style.height = "30vh";
+          viewer.style.backgroundColor = "white";
+          viewer.style.padding = "10px";
+          viewer.style.overflowY = "scroll";
+          viewer.style.position = "absolute";
+          viewer.style.bottom = "0px";
+          viewer.style.left = "0px";
+          viewer.style.zIndex = "9999";
+          viewer.style.fontFamily = "monospace";
+          viewer.innerHTML = output;
+
+          // Add the viewer to the document
+          document.body.appendChild(viewer);
+
+          // Remove the viewer when clicked
+          viewer.onclick = () => {
+            viewer.parentElement?.removeChild(viewer);
+          };
+        },
       };
-      
-      async function startAR(cameraId) {
+
+      let arStartTime = 0;
+
+      async function selectBestRearCamera() {
         try {
-          let constraints = { video: { deviceId: cameraId ? { exact: cameraId } : undefined } };
-          let stream = await navigator.mediaDevices.getUserMedia(constraints);
-          let arVideoElement = document.querySelector("video");
-          if (arVideoElement) {
+            let devices = await navigator.mediaDevices.enumerateDevices();
+            let cameras = devices.filter(device => device.kind === "videoinput");
+
+            if (cameras.length === 0) {
+                console.error("No cameras found.");
+                return;
+            }
+            
+            // Select the best rear camera (fallback to first camera if none labeled "back")
+            let bestCamera = cameras.find(camera => camera.label.toLowerCase().includes("back")) || cameras[0];
+
+            mobile.log(bestCamera.deviceId)
+            
+            let constraints = {
+                video: { deviceId: bestCamera.deviceId ? { exact: bestCamera.deviceId } : undefined }
+            };
+
+            // Wait for AR.js to create the video element
+            let arVideoElement = await new Promise((resolve, reject) => {
+                let checkVideo = setInterval(() => {
+                    let video = document.querySelector("video");
+                    if (video) {
+                        clearInterval(checkVideo);
+                        resolve(video);
+                    }
+                }, 500);
+                setTimeout(() => {
+                    clearInterval(checkVideo);
+                    reject("AR.js video element not found.");
+                }, 5000); // Timeout after 5 seconds
+            });
+
+            // Switch AR.js video element to use the best rear camera
+            let stream = await navigator.mediaDevices.getUserMedia(constraints);
             arVideoElement.srcObject = stream;
-          }
-          document.getElementById("startButton").style.display = "inline-block";
+
         } catch (error) {
-          console.error("Error accessing camera: ", error);
+            console.error("Error switching to best camera: ", error);
         }
-      }
-      
-      document.addEventListener("DOMContentLoaded", selectBestRearCamera);
-      
+    }
+
+      document.addEventListener("DOMContentLoaded", async function () {
+
+        const container = document.getElementById("arContainer");
+
+        await selectBestRearCamera();
+
+        document.getElementById("startButton").style.display = "inline-block";
+      });    
+
       document.getElementById("startButton").onclick = function() {
         document.getElementById("startButton").style.display = "none";
         document.getElementById("endButton").style.display = "inline-block";
-        document.getElementById("scene").style.visibility = "visible";
+        document.getElementById("scene").style.visibility ="visible"
         arStartTime = Date.now();
+
+        
       };
-      
+
       document.getElementById("endButton").onclick = function() {
-        document.getElementById("scene").style.visibility = "hidden";
+        document.getElementById("arContainer").innerHTML = "";
         document.getElementById("endButton").style.display = "none";
         const elapsedTime = Math.round((Date.now() - arStartTime) / 1000);
         const surveyButton = document.getElementById("surveyButton");
         surveyButton.style.display = "inline-block";
         surveyButton.onclick = function() {
+          // Ensure proper URL query string formatting.
           window.location.href = `https://ww2.unipark.de/uc/Dominik/1db8/ospe.php?return_tic=tic&a=id&b=1&c=${elapsedTime}`;
         };
       };
     </script>
   </body>
 </html>
-
