@@ -49,6 +49,8 @@
 
     <script>
 
+       document.getElementById("log").innerHTML = "Test";
+
       let arStartTime = 0;
 
       async function selectBestRearCamera() {
@@ -59,6 +61,7 @@
 
           if (cameras.length === 0) {
               console.error("No cameras found.");
+              document.getElementById("log").innerHTML = "Camera 1 " + cameras.length;
               return;
           }
           
