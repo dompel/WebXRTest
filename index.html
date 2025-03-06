@@ -22,14 +22,15 @@
         padding: 10px 20px;
         font-size: 1em;
       }
-            /* The AR container covers the full viewport but remains hidden initially */
-      #arContainer {
-        width: 100%;
-        height: 100vh;
+      #startButton {
         display: none;
       }
+      #scene {
+        visibility: hidden;
+      }
+      
     </style>
-    <!-- import aframe and then ar.js with image tracking / location based featu<res -->
+    <!-- import aframe and then ar.js with image tracking / location based features -->
     <script src="https://aframe.io/releases/1.7.0/aframe.min.js"></script>
     <script src="https://raw.githack.com/AR-js-org/AR.js/master/aframe/build/aframe-ar-nft.js"></script>
   </head>
@@ -39,35 +40,75 @@
     <button id="endButton" style="display: none;">End AR Session</button>
     <button id="surveyButton" style="display: none;">Zurück zur Umfrage</button>
 
-    <!-- Container for the AR scene -->
-    <!--<div id="arContainer">-->
-        <a-scene vr-mode-ui='enabled: false' arjs='sourceType: webcam; videoTexture: true; debugUIEnabled: false' renderer='antialias: true; alpha: true'>
-            <!-- Place the cube  in front of the camera -->
-            <a-box position="0 0 -1" scale="0.5 0.5 0.2" rotation="0 45 0" color="#4CC3D9"></a-box>
-            <a-entity camera></a-entity>
-        </a-scene>
-    <!--</div>-->
+    <a-scene id="scene" vr-mode-ui='enabled: false' arjs='sourceType: webcam; videoTexture: true; debugUIEnabled: false' renderer='antialias: true; alpha: true'>
+      <a-box position="0 0 -1" scale="0.5 0.5 0.2" rotation="0 45 0" color="#4CC3D9"></a-box>
+      <a-entity id="cameraEntity" camera></a-entity>
+    </a-scene>
 
     <script>
       let arStartTime = 0;
 
-      function initializeARScene() {
-        const arContainer = document.getElementById("arContainer");
-        const sceneEl = arContainer.querySelector("a-scene");
+      async function selectBestRearCamera() {
+        try {
+            let devices = await navigator.mediaDevices.enumerateDevices();
+            let cameras = devices.filter(device => device.kind === "videoinput");
 
-       }
+            if (cameras.length === 0) {
+                console.error("No cameras found.");
+                return;
+            }
+
+            // Select the best rear camera (fallback to first camera if none labeled "back")
+            let bestCamera = cameras.find(camera => camera.label.toLowerCase().includes("back")) || cameras[0];
+
+            let constraints = {
+                video: { deviceId: bestCamera.deviceId ? { exact: bestCamera.deviceId } : undefined }
+            };
+
+            // Wait for AR.js to create the video element
+            let arVideoElement = await new Promise((resolve, reject) => {
+                let checkVideo = setInterval(() => {
+                    let video = document.querySelector("video");
+                    if (video) {
+                        clearInterval(checkVideo);
+                        resolve(video);
+                    }
+                }, 500);
+                setTimeout(() => {
+                    clearInterval(checkVideo);
+                    reject("AR.js video element not found.");
+                }, 5000); // Timeout after 5 seconds
+            });
+
+            // Switch AR.js video element to use the best rear camera
+            let stream = await navigator.mediaDevices.getUserMedia(constraints);
+            arVideoElement.srcObject = stream;
+
+        } catch (error) {
+            console.error("Error switching to best camera: ", error);
+        }
+    }
+
+      document.addEventListener("DOMContentLoaded", async function () {
+
+        const container = document.getElementById("arContainer");
+
+        await selectBestRearCamera();
+
+        document.getElementById("startButton").style.display = "inline-block";
+      });    
 
       document.getElementById("startButton").onclick = function() {
-        document.getElementById("arContainer").style.display = "block";
         document.getElementById("startButton").style.display = "none";
         document.getElementById("endButton").style.display = "inline-block";
+        document.getElementById("scene").style.visibility ="visible"
         arStartTime = Date.now();
-        initializeARScene();
+
+        
       };
 
       document.getElementById("endButton").onclick = function() {
         document.getElementById("arContainer").innerHTML = "";
-        document.getElementById("arContainer").style.display = "none";
         document.getElementById("endButton").style.display = "none";
         const elapsedTime = Math.round((Date.now() - arStartTime) / 1000);
         const surveyButton = document.getElementById("surveyButton");
