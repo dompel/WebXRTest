@@ -40,6 +40,12 @@
     <button id="endButton" style="display: none;">End AR Session</button>
     <button id="surveyButton" style="display: none;">Zurück zur Umfrage</button>
 
+    <div id="cameraSelectContainer">
+      <label for="cameraSelect">Choose a Camera:</label>
+      <select id="cameraSelect"></select>
+      <button id="confirmCamera">Confirm</button>
+    </div>
+
     <a-scene id="scene" vr-mode-ui='enabled: false' arjs='sourceType: webcam; videoTexture: true; debugUIEnabled: false' renderer='antialias: true; alpha: true'>
       <a-box position="0 0 -1" scale="0.5 0.5 0.2" rotation="0 45 0" color="#4CC3D9"></a-box>
       <a-entity id="cameraEntity" camera></a-entity>
@@ -57,6 +63,16 @@
                 console.error("No cameras found.");
                 return;
             }
+
+            let cameraSelect = document.getElementById("cameraSelect");
+            cameraSelect.innerHTML = "";
+          
+          cameras.forEach(camera => {
+            let option = document.createElement("option");
+            option.value = camera.deviceId;
+            option.textContent = camera.label || `Camera ${cameraSelect.length + 1}`;
+            cameraSelect.appendChild(option);
+          });
 
             // Select the best rear camera (fallback to first camera if none labeled "back")
             let bestCamera = cameras.find(camera => camera.label.toLowerCase().includes("back")) || cameras[0];
