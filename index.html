@@ -51,6 +51,10 @@
 
       let arStartTime = 0;
 
+      function delay(ms) {
+        return new Promise(resolve => setTimeout(resolve, ms));
+      }
+
       async function selectBestRearCamera() {
         try {
             let devices = await navigator.mediaDevices.enumerateDevices();
@@ -62,7 +66,10 @@
             }
             
             // Select the best rear camera (fallback to first camera if none labeled "back")
-            let bestCamera = cameras.find(camera => camera.label.toLowerCase().includes("back")) || cameras[0];
+            let bestCamera = cameras.find(camera => 
+                camera.label.toLowerCase().includes("back") && 
+                (camera.label.toLowerCase().includes("0") || camera.label.toLowerCase().includes("default"))
+            ) || cameras[0];
 
             console.log(bestCamera)
 
@@ -99,6 +106,8 @@
       document.addEventListener("DOMContentLoaded", async function () {
 
         const container = document.getElementById("arContainer");
+
+        await delay(500);
 
         await selectBestRearCamera();
 
