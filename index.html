@@ -35,7 +35,7 @@
     <script src="https://raw.githack.com/AR-js-org/AR.js/master/aframe/build/aframe-ar-nft.js"></script>
   </head>
   <body>
-    <h1>Welcome to the WebAR Application V3</h1>
+    <h1>Welcome to the WebAR Application V1</h1>
     <button id="startButton">Start WebXR</button>
     <button id="endButton" style="display: none;">End AR Session</button>
     <button id="surveyButton" style="display: none;">Zurück zur Umfrage</button>
@@ -62,9 +62,11 @@
             }
             
             // Select the best rear camera (fallback to first camera if none labeled "back")
-            let bestCamera = cameras.find(camera => camera.label.toLowerCase().includes("back")) || cameras[3];
+            let bestCamera = cameras.find(camera => camera.label.toLowerCase().includes("back")) || cameras[0];
 
-            document.getElementById("log").innerHTML = "Camera 4 " + cameras[3].label;
+            console.log(bestCamera)
+
+            document.getElementById("log").innerHTML = "Camera 1 " + cameras.length;
 
             let constraints = {
               video: { deviceId: bestCamera.deviceId ? { exact: bestCamera.deviceId } : undefined }
