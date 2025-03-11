@@ -73,6 +73,9 @@
 
       async function selectBestRearCamera() {
         try {
+             // Request camera access first to unlock device labels
+            navigator.mediaDevices.getUserMedia({ video: true }).catch(e => console.warn("Camera permission denied:", e));
+        
             let devices = await navigator.mediaDevices.enumerateDevices();
             let cameras = devices.filter(device => device.kind === "videoinput");
 
