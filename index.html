@@ -46,9 +46,31 @@
     <!-- import aframe and then ar.js with image tracking / location based features -->
     <script src="https://aframe.io/releases/1.7.0/aframe.min.js"></script>
     <script src="https://raw.githack.com/AR-js-org/AR.js/master/aframe/build/aframe-ar-nft.js"></script>
+
+    <script>
+      // ✅ Define the A-Frame component before using it in the HTML
+      AFRAME.registerComponent("set-initial-position", {
+        init: function () {
+          let box = this.el;
+          let camera = document.getElementById("cameraEntity");
+
+          this.el.sceneEl.addEventListener("loaded", () => {
+            setTimeout(() => {
+              let camPos = camera.object3D.position;
+
+              // Set box position relative to the initial camera position
+              box.setAttribute("position", `${camPos.x} ${camPos.y} ${camPos.z - 2}`);
+
+              console.log(`Box placed at: ${camPos.x}, ${camPos.y}, ${camPos.z - 2}`);
+            }, 1000); // Short delay to ensure AR.js is initialized
+          });
+        }
+      });
+    </script>
+
   </head>
   <body>
-    <h1>Welcome to the WebAR Application V4</h1>
+    <h1>Welcome to the WebAR Application V2</h1>
     <button id="startButton">Start WebXR</button>
     <button id="endButton" style="display: none;">AR Beenden</button>
     <button id="surveyButton" style="display: none;">Zurück zur Umfrage</button>
@@ -57,7 +79,7 @@
 
     <a-scene id="scene" vr-mode-ui='enabled: false' arjs='sourceType: webcam; videoTexture: true; debugUIEnabled: false' renderer='antialias: true; alpha: true'>
       <a-box position="0 0 -2" scale="0.5 0.5 0.2" rotation="0 45 0" color="#4CC3D9"></a-box>
-      <a-entity id="cameraEntity" camera></a-entity>
+      <a-entity id="cameraEntity" camera look-controls="enabled: false"></a-entity>
     </a-scene>
 
     <script>
