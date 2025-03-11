@@ -82,12 +82,14 @@
             }
 
             const listEl = document.createElement("ul");
-            cameras.forEach() => {
-              const el = document.createElement('li');
-              el.innerHTML = `Label: ${cameras.label}`; 
-              listEl.appendChild(el);
+
+            cameras.forEach(({ label }) => {  
+                const el = document.createElement('li');
+                el.innerHTML = `Label: ${label}`;  
+                listEl.appendChild(el);
             });
-            logContainer.appendChild(listEl);
+
+            logContainer.appendChild(listEl); // Append list to the container
 
             
             // Select the best rear camera (fallback to first camera if none labeled "back")
