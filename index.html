@@ -82,9 +82,9 @@
             }
 
             const listEl = document.createElement("ul");
-            cameras.forEach(({ label, deviceId }) => {
+            cameras.forEach() => {
               const el = document.createElement('li');
-              el.innerHTML = `Label: ${label}`; 
+              el.innerHTML = `Label: ${cameras.label}`; 
               listEl.appendChild(el);
             });
             logContainer.appendChild(listEl);
